@@ -1,5 +1,5 @@
 # via https://gist.github.com/DewaldDeJager/518f6814049a0f7763642ec02f62cabf
-name: sync-fork
+name: Sync Fork
 on:
   schedule:
     - cron: '0 0 * * *'
