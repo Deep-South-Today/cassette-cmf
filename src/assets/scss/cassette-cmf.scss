@@ -199,6 +199,88 @@ $transition-fast: 0.15s ease-in-out;
 	}
 }
 
+.cassette-cmf-field.is-fancy-toggle input[type="checkbox"] {
+	--active-color: var(--wp-admin-theme-color);
+	--inactive-color: #555;
+	--switch-color: #fff;
+	--outline-color: #000;
+	--size: 16px;
+	--border-size: 2px;
+	--checkmark-visibility: visible;
+
+	appearance: none;
+	cursor: pointer;
+	background: var(--inactive-color);
+	border-radius: var(--size);
+	border: solid var(--border-size) var(--inactive-color);
+	box-sizing: content-box;
+	content: "";
+	cursor: pointer;
+	display: inline-block;
+	height: var(--size);
+	margin: 0 calc(var(--size) * 0.4) 0 0;
+	position: relative;
+	transition: all 0.2s;
+	width: calc(2 * var(--size));
+
+	&::before {
+		content: "";
+		display: inline-block;
+		background: var(--switch-color);
+		border: none;
+		border-radius: var(--size);
+		width: var(--size);
+		height: var(--size);
+		position: absolute;
+		margin: 0;
+		left: 0;
+		top: 0;
+		transition: all 0.2s;
+
+		&:is(:focus, :focus-visible) {
+			outline: none;
+		}
+	}
+
+	&::after {
+		position: absolute;
+		right: 0;
+		background: var(--active-color);
+		content: "";
+		display: inline-block;
+		width: var(--size);
+		height: var(--size);
+		opacity: 0;
+		visibility: var(--checkmark-visibility);
+		mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'><path d='M14.83 4.89l1.34.94-5.81 8.38H9.02L5.78 9.67l1.34-1.25 2.57 2.4z'/></svg>");
+	}
+
+	&:checked {
+		border: solid var(--border-size) var(--active-color);
+		background: var(--active-color);
+
+		&::before {
+			left: var(--size);
+		}
+
+		/* Add a checkmark when toggled on. */
+		&::after {
+			opacity: 1;
+			transition: all 0.05s 0.15s;
+		}
+	}
+
+	&:focus-visible {
+		outline: solid 2px var(--outline-color);
+		outline-offset: 2px;
+	}
+
+	&:disabled {
+		opacity: 0.6;
+		cursor: not-allowed;
+	}
+}
+
 // ==========================================================================
 // Radio Fields
 // ==========================================================================
