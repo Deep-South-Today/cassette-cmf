@@ -858,8 +858,15 @@
 		}
 
 		toggleField($field, shouldShow) {
+			const $visibilityContainer = this.getVisibilityContainer($field);
+
 			$field.toggleClass('cassette-cmf-hidden', !shouldShow);
 			$field.attr('aria-hidden', shouldShow ? 'false' : 'true');
+
+			if ($visibilityContainer.length && !$visibilityContainer.is($field)) {
+				$visibilityContainer.toggleClass('cassette-cmf-hidden', !shouldShow);
+				$visibilityContainer.attr('aria-hidden', shouldShow ? 'false' : 'true');
+			}
 
 			$field.find('[required]').each((index, element) => {
 				const $element = $(element);
@@ -875,6 +882,16 @@
 				$element.data('cassette-required', true);
 				$element.prop('required', false);
 			});
+		}
+
+		getVisibilityContainer($field) {
+			const $row = $field.closest('tr');
+
+			if ($row.length && $row.children('th, td').length >= 2) {
+				return $row;
+			}
+
+			return $field;
 		}
 
 		matchesAny(currentValue, expectedValues) {
