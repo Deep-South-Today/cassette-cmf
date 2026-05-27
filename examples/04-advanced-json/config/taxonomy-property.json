@@ -45,7 +45,8 @@
           "name": "is_featured",
           "type": "checkbox",
           "label": "Featured Type",
-          "description": "Show prominently on the homepage"
+          "description": "Show prominently on the homepage",
+					"class": "is-fancy-toggle"
         }
       ]
     },

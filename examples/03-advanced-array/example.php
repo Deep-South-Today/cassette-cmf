@@ -257,6 +257,7 @@ function cassette_cmf_advanced_array_init() {
 									'type'        => 'checkbox',
 									'label'       => 'Featured Product',
 									'description' => 'Show on homepage',
+									'class'       => 'is-fancy-toggle',
 								],
 							],
 						],
