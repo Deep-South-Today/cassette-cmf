@@ -217,17 +217,17 @@ function cassette_cmf_simple_array_init() {
 						],
 					],
 					// Radio - Theme
-					[
-						'name'    => 'display_theme',
-						'type'    => 'radio',
-						'label'   => 'Display Theme',
-						'options' => [
-							'light' => 'Light',
-							'dark'  => 'Dark',
-							'auto'  => 'Auto (System)',
+						[
+							'name'    => 'display_theme',
+							'type'    => 'radio',
+							'label'   => 'Display Theme',
+							'options' => [
+								'light' => 'Light',
+								'dark'  => 'Dark',
+								'auto'  => 'Auto (System)',
+							],
+							'default' => 'auto',
 						],
-						'default' => 'auto',
-					],
 					// Color - Accent Color
 					[
 						'name'    => 'accent_color',

@@ -93,9 +93,9 @@ function cassette_cmf_advanced_array_init() {
 									'description' => 'Enable sale pricing for this product',
 								],
 								[
-									'name'  => 'sale_price',
-									'type'  => 'number',
-									'label' => 'Sale Price ($)',
+									'name'        => 'sale_price',
+									'type'        => 'number',
+									'label'       => 'Sale Price ($)',
 									'conditional' => [
 										'rules' => [
 											[
@@ -105,8 +105,8 @@ function cassette_cmf_advanced_array_init() {
 											],
 										],
 									],
-									'min'   => 0,
-									'step'  => 0.01,
+									'min'         => 0,
+									'step'        => 0.01,
 								],
 								[
 									'name'    => 'stock_status',

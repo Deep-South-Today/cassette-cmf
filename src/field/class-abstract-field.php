@@ -322,7 +322,7 @@ abstract class Abstract_Field implements Field_Interface {
 		}
 
 		if ( null === $submission_context ) {
-			$submission_context = isset( $_POST ) && is_array( $_POST ) ? $_POST : [];
+			$submission_context = $this->get_submission_context();
 		}
 
 		$results = [];
@@ -695,9 +695,7 @@ abstract class Abstract_Field implements Field_Interface {
 			return $attributes;
 		}
 
-		$json = function_exists( 'wp_json_encode' )
-			? \wp_json_encode( $conditional )
-			: json_encode( $conditional );
+		$json = $this->encode_json_attribute( $conditional );
 
 		if ( false === $json ) {
 			return $attributes;
@@ -708,19 +706,12 @@ abstract class Abstract_Field implements Field_Interface {
 		if ( 'AND' === $conditional['relation'] && 1 === count( $conditional['rules'] ) ) {
 			$legacy_rule = $conditional['rules'][0];
 			if ( '==' === $legacy_rule['operator'] && array_key_exists( 'value', $legacy_rule ) ) {
-				$legacy_json = function_exists( 'wp_json_encode' )
-					? \wp_json_encode(
-						[
-							'field' => $legacy_rule['field'],
-							'value' => $legacy_rule['value'],
-						]
-					)
-					: json_encode(
-						[
-							'field' => $legacy_rule['field'],
-							'value' => $legacy_rule['value'],
-						]
-					);
+				$legacy_json = $this->encode_json_attribute(
+					[
+						'field' => $legacy_rule['field'],
+						'value' => $legacy_rule['value'],
+					]
+				);
 
 				if ( false !== $legacy_json ) {
 					$attributes['data-show-if'] = $legacy_json;
@@ -729,6 +720,31 @@ abstract class Abstract_Field implements Field_Interface {
 		}
 
 		return $attributes;
+	}
+
+	/**
+	 * Get the current submitted form data.
+	 *
+	 * @return array<string, mixed>
+	 */
+	protected function get_submission_context(): array {
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Read-only access for conditional evaluation; save handlers verify nonces before persisting values.
+		return $_POST;
+	}
+
+	/**
+	 * Encode attribute payloads as JSON.
+	 *
+	 * @param array<string, mixed> $value Value to encode.
+	 * @return string|false
+	 */
+	protected function encode_json_attribute( array $value ) {
+		if ( function_exists( 'wp_json_encode' ) ) {
+			return \wp_json_encode( $value );
+		}
+
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.json_encode_json_encode -- Fallback when WordPress is not loaded, such as unit tests.
+		return json_encode( $value );
 	}
 
 	/**
@@ -797,7 +813,7 @@ abstract class Abstract_Field implements Field_Interface {
 	 * @return string
 	 */
 	protected function render_wrapper_start(): string {
-		$classes = [ 'cassette-cmf-field', 'cassette-cmf-field-' . $this->type ];
+		$classes    = [ 'cassette-cmf-field', 'cassette-cmf-field-' . $this->type ];
 		$attributes = [
 			'data-field-name' => $this->name,
 			'data-field-type' => $this->type,
@@ -812,7 +828,7 @@ abstract class Abstract_Field implements Field_Interface {
 		}
 
 		if ( ! empty( $this->get_conditional_config() ) ) {
-			$classes[] = 'cassette-cmf-field-conditional';
+			$classes[]  = 'cassette-cmf-field-conditional';
 			$attributes = array_merge( $attributes, $this->get_wrapper_data_attributes() );
 		}
 

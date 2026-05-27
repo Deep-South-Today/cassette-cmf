@@ -96,12 +96,14 @@ class Repeater_Field extends Abstract_Field {
 			$field_name = $field['name'] ?? 'unknown';
 
 			if ( ! empty( $field['conditional'] ) || ! empty( $field['show_if'] ) ) {
+				// phpcs:disable WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Exception messages are not rendered directly as HTML output.
 				throw new \InvalidArgumentException(
 					sprintf(
 						'Repeater sub-field "%s" cannot define conditional visibility. Conditional fields are not supported inside repeaters.',
-						$field_name
+						$this->esc_html( (string) $field_name )
 					)
 				);
+				// phpcs:enable WordPress.Security.EscapeOutput.ExceptionNotEscaped
 			}
 
 			if ( ! empty( $field['fields'] ) && is_array( $field['fields'] ) ) {
