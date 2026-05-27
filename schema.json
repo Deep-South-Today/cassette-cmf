@@ -461,20 +461,6 @@
           "required": ["rules"],
           "additionalProperties": false
         },
-        "show_if": {
-          "type": "object",
-          "description": "Legacy single-rule alias for conditional visibility",
-          "properties": {
-            "field": {
-              "type": "string"
-            },
-            "value": {
-              "description": "Comparison value"
-            }
-          },
-          "required": ["field"],
-          "additionalProperties": false
-        },
         "placeholder": {
           "type": "string",
           "description": "Placeholder text for text-based inputs",

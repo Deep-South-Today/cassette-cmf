@@ -79,7 +79,6 @@ abstract class Abstract_Field implements Field_Interface {
 			'required'        => false,
 			'class'           => '',
 			'conditional'     => [],
-			'show_if'         => [],
 			'attributes'      => [],
 			'use_name_prefix' => true,
 		];
@@ -290,8 +289,6 @@ abstract class Abstract_Field implements Field_Interface {
 	/**
 	 * Get normalized conditional configuration.
 	 *
-	 * Supports both the new `conditional` config and legacy `show_if` config.
-	 *
 	 * @return array<string, mixed>
 	 */
 	public function get_conditional_config(): array {
@@ -352,14 +349,9 @@ abstract class Abstract_Field implements Field_Interface {
 		$config = $config ?? $this->config;
 
 		$raw_conditional = $config['conditional'] ?? [];
-		$legacy_show_if  = $config['show_if'] ?? [];
 
-		if ( empty( $raw_conditional ) && empty( $legacy_show_if ) ) {
+		if ( empty( $raw_conditional ) ) {
 			return [];
-		}
-
-		if ( ! empty( $legacy_show_if ) ) {
-			$raw_conditional = $legacy_show_if;
 		}
 
 		if ( ! is_array( $raw_conditional ) ) {
@@ -702,22 +694,6 @@ abstract class Abstract_Field implements Field_Interface {
 		}
 
 		$attributes['data-conditional'] = $json;
-
-		if ( 'AND' === $conditional['relation'] && 1 === count( $conditional['rules'] ) ) {
-			$legacy_rule = $conditional['rules'][0];
-			if ( '==' === $legacy_rule['operator'] && array_key_exists( 'value', $legacy_rule ) ) {
-				$legacy_json = $this->encode_json_attribute(
-					[
-						'field' => $legacy_rule['field'],
-						'value' => $legacy_rule['value'],
-					]
-				);
-
-				if ( false !== $legacy_json ) {
-					$attributes['data-show-if'] = $legacy_json;
-				}
-			}
-		}
 
 		return $attributes;
 	}

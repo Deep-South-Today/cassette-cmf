@@ -86,7 +86,6 @@ class Test_Field_Types extends WP_UnitTestCase {
 		$html = $field->render( '' );
 
 		$this->assertStringContainsString( 'data-conditional=', $html );
-		$this->assertStringContainsString( 'data-show-if=', $html );
 		$this->assertStringContainsString( 'cassette-cmf-field-conditional', $html );
 	}
 

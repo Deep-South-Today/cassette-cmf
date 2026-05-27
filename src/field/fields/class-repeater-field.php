@@ -95,7 +95,7 @@ class Repeater_Field extends Abstract_Field {
 
 			$field_name = $field['name'] ?? 'unknown';
 
-			if ( ! empty( $field['conditional'] ) || ! empty( $field['show_if'] ) ) {
+			if ( ! empty( $field['conditional'] ) ) {
 				// phpcs:disable WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Exception messages are not rendered directly as HTML output.
 				throw new \InvalidArgumentException(
 					sprintf(

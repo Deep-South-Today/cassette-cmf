@@ -1068,11 +1068,7 @@ Conditional visibility affects validation as well as rendering:
 
 - Hidden fields skip required and custom validation while their condition is false.
 - Hidden fields keep their current submitted value; they are not automatically cleared.
-- Repeater sub-fields do not support `conditional` or `show_if`. Repeater definitions containing conditional sub-fields are rejected.
-
-#### Legacy Compatibility
-
-Cassette-CMF also accepts the older single-rule `show_if` format for backwards compatibility, but new code should prefer `conditional`.
+- Repeater sub-fields do not support `conditional`. Repeater definitions containing conditional sub-fields are rejected.
 
 ### Repeater Fields
 

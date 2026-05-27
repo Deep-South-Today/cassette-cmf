@@ -649,7 +649,7 @@
 	class ConditionalFields extends BaseField {
 		constructor() {
 			super();
-			this.selector = '[data-conditional], [data-show-if]';
+			this.selector = '[data-conditional]';
 		}
 
 		init() {
@@ -689,26 +689,9 @@
 
 		getConditionalConfig($field) {
 			const conditionalAttr = $field.attr('data-conditional');
-			const showIfAttr = $field.attr('data-show-if');
 
 			if (conditionalAttr) {
 				return this.parseConditionalJson(conditionalAttr);
-			}
-
-			if (showIfAttr) {
-				const legacyConfig = this.parseConditionalJson(showIfAttr);
-				if (legacyConfig && legacyConfig.field) {
-					return {
-						relation: 'AND',
-						rules: [
-							{
-								field: legacyConfig.field,
-								operator: '==',
-								value: legacyConfig.value
-							}
-						]
-					};
-				}
 			}
 
 			return null;

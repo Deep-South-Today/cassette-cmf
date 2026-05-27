@@ -527,10 +527,6 @@ class Schema_Validator {
 			}
 		}
 
-		if ( isset( $field['show_if'] ) ) {
-			$this->validate_conditional_property( $field['show_if'], "{$path}.show_if", true );
-		}
-
 		if ( isset( $field['conditional'] ) ) {
 			$this->validate_conditional_property( $field['conditional'], "{$path}.conditional" );
 		}
@@ -541,16 +537,15 @@ class Schema_Validator {
 	 *
 	 * @param mixed  $conditional Conditional configuration.
 	 * @param string $path Path for error reporting.
-	 * @param bool   $is_legacy Whether this is the legacy show_if syntax.
 	 * @return void
 	 */
-	private function validate_conditional_property( $conditional, string $path, bool $is_legacy = false ): void {
+	private function validate_conditional_property( $conditional, string $path ): void {
 		if ( ! is_array( $conditional ) ) {
 			$this->errors[] = "{$path} must be an object/array";
 			return;
 		}
 
-		if ( $is_legacy || isset( $conditional['field'] ) ) {
+		if ( isset( $conditional['field'] ) ) {
 			$conditional = [
 				'relation' => 'AND',
 				'rules'    => [ $conditional ],
@@ -618,7 +613,7 @@ class Schema_Validator {
 			return false;
 		}
 
-		if ( ! empty( $field['conditional'] ) || ! empty( $field['show_if'] ) ) {
+		if ( ! empty( $field['conditional'] ) ) {
 			return true;
 		}
 
