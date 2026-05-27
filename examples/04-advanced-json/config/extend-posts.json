@@ -14,7 +14,8 @@
               "name": "is_featured",
               "type": "checkbox",
               "label": "Featured Article",
-              "description": "Display in featured section"
+              "description": "Display in featured section",
+							"class": "is-fancy-toggle"
             },
             {
               "name": "reading_time",

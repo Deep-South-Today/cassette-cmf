@@ -25,7 +25,8 @@
           "name": "is_featured",
           "type": "checkbox",
           "label": "Featured Category",
-          "description": "Display prominently on the site"
+          "description": "Display prominently on the site",
+					"class": "is-fancy-toggle"
         }
       ]
     },

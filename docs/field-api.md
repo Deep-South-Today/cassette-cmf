@@ -348,9 +348,23 @@ Single checkbox or multiple checkboxes.
 ]
 ```
 
+**Toggle Switch:**
+```php
+[
+    'name'  => 'is_featured',
+    'type'  => 'checkbox',
+    'label' => 'Featured Post?',
+	'class' => 'is-fancy-toggle',
+]
+```
+
+
 **Special Options:**
 - `options` - Array of checkboxes (for multiple)
 - `layout` - 'inline' or 'stacked'
+
+**Additional Styles:**
+- `is-fancy-toggle` - Render checkboxes as [toggle switches](https://www.w3.org/WAI/ARIA/apg/patterns/switch/).
 
 ---
 
