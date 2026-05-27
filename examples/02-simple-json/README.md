@@ -13,7 +13,7 @@ An "Events" post type with:
 - **Location** (text) - Venue name/address
 - **Capacity** (number) - Max attendees
 - **Free Event** (checkbox) - Is it free?
-- **Ticket Price** (number) - Cost if not free
+- **Ticket Price** (number) - Cost if not free, shown only when `is_free` is unchecked
 - **Registration URL** (url) - Registration link
 - **Contact Email** (email) - Event contact
 - **Short Description** (textarea) - Brief description
@@ -38,7 +38,7 @@ A top-level settings page with:
 - **Default Capacity** (number)
 - **Currency Symbol** (text)
 - **Enable Registration** (checkbox)
-- **Notification Email** (email)
+- **Notification Email** (email) - Shown only when registration is enabled
 - **Date Display Format** (radio)
 - **Primary Color** (color)
 
@@ -107,6 +107,26 @@ Manager::init()->register_from_json( $path );
 
 // Skip validation
 Manager::init()->register_from_json( $path, false );
+```
+
+## Conditional Fields
+
+This example includes conditional visibility in JSON using the shared `conditional` config:
+
+```json
+{
+	"name": "ticket_price",
+	"type": "number",
+	"conditional": {
+		"rules": [
+			{
+				"field": "is_free",
+				"operator": "==",
+				"value": "0"
+			}
+		]
+	}
+}
 ```
 
 ## For Advanced Features

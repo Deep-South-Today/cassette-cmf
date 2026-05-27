@@ -201,6 +201,21 @@ function cassette_cmf_simple_array_init() {
 						'label'       => 'Enable Email Notifications',
 						'description' => 'Send email reminders for due books',
 					],
+					[
+						'name'        => 'notification_email',
+						'type'        => 'email',
+						'label'       => 'Notification Email',
+						'description' => 'Only used when email notifications are enabled',
+						'conditional' => [
+							'rules' => [
+								[
+									'field'    => 'enable_notifications',
+									'operator' => '==',
+									'value'    => '1',
+								],
+							],
+						],
+					],
 					// Radio - Theme
 					[
 						'name'    => 'display_theme',

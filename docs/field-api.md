@@ -990,41 +990,89 @@ $handler->add_fields('general', [
 
 ### Conditional Fields
 
-Show/hide fields based on other field values:
+Show or hide any built-in field based on other field values using the shared `conditional` config. The same shape works in array and JSON registration, including fields nested inside groups, tabs, and metaboxes.
 
 ```php
-class ConditionalField extends AbstractField {
-    
-    public function render($value = null): string {
-        $depends_on = $this->get_config('depends_on');
-        $depends_value = $this->get_config('depends_value');
-        
-        $attrs = $this->get_attributes([
-            'type'  => 'text',
-            'value' => $value ?? $this->get_config('default', ''),
-            'data-depends-on' => $depends_on,
-            'data-depends-value' => $depends_value,
-        ]);
-        
-        return $this->render_wrapper(
-            $this->render_label() .
-            "<input {$attrs} />" .
-            $this->render_description(),
-            ['data-conditional' => 'true']
-        );
-    }
-    
-    public function enqueue_assets(): void {
-        wp_enqueue_script(
-            'conditional-fields',
-            plugin_dir_url(__FILE__) . 'assets/conditional-fields.js',
-            ['jquery'],
-            '1.0.0',
-            true
-        );
-    }
+[
+    'name'        => 'ticket_price',
+    'type'        => 'number',
+    'label'       => 'Ticket Price',
+    'conditional' => [
+        'relation' => 'AND',
+        'rules'    => [
+            [
+                'field'    => 'is_free',
+                'operator' => '==',
+                'value'    => '0',
+            ],
+        ],
+    ],
+]
+```
+
+```json
+{
+  "name": "ticket_price",
+  "type": "number",
+  "label": "Ticket Price",
+  "conditional": {
+    "relation": "AND",
+    "rules": [
+      {
+        "field": "is_free",
+        "operator": "==",
+        "value": "0"
+      }
+    ]
+  }
 }
 ```
+
+#### Supported Operators
+
+- `==` and `!=` for exact matches
+- `>` `>=` `<` `<=` for numeric comparisons
+- `in` and `not_in` for matching one or many values
+- `empty` and `not_empty` for presence checks
+
+#### Multi-Rule Conditions
+
+Use `relation: 'OR'` when any rule should make the field visible:
+
+```php
+[
+    'name'        => 'follow_up_message',
+    'type'        => 'textarea',
+    'label'       => 'Follow-up Message',
+    'conditional' => [
+        'relation' => 'OR',
+        'rules'    => [
+            [
+                'field'    => 'stock_status',
+                'operator' => '==',
+                'value'    => 'backorder',
+            ],
+            [
+                'field'    => 'on_sale',
+                'operator' => '==',
+                'value'    => '1',
+            ],
+        ],
+    ],
+]
+```
+
+#### Validation Behavior
+
+Conditional visibility affects validation as well as rendering:
+
+- Hidden fields skip required and custom validation while their condition is false.
+- Hidden fields keep their current submitted value; they are not automatically cleared.
+- Repeater sub-fields do not support `conditional` or `show_if`. Repeater definitions containing conditional sub-fields are rejected.
+
+#### Legacy Compatibility
+
+Cassette-CMF also accepts the older single-rule `show_if` format for backwards compatibility, but new code should prefer `conditional`.
 
 ### Repeater Fields
 
