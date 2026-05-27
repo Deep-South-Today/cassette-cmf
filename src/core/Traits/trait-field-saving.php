@@ -54,6 +54,15 @@ trait Field_Saving_Trait {
 	 */
 	protected function sanitize_and_validate( Field_Interface $field, $value ): array {
 		$sanitized  = $field->sanitize( $value );
+
+		if ( method_exists( $field, 'should_validate' ) && ! $field->should_validate( isset( $_POST ) && is_array( $_POST ) ? $_POST : [] ) ) {
+			return [
+				'value'  => $sanitized,
+				'valid'  => true,
+				'errors' => [],
+			];
+		}
+
 		$validation = $field->validate( $sanitized );
 
 		return [
