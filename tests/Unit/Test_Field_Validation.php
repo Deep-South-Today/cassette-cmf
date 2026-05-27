@@ -8,6 +8,26 @@
  */
 
 use Pedalcms\CassetteCmf\Field\Field_Factory;
+use Pedalcms\CassetteCmf\Field\Field_Interface;
+use Pedalcms\CassetteCmf\Core\Traits\Field_Saving_Trait;
+
+/**
+ * Save trait proxy for conditional validation tests.
+ */
+class Test_Field_Saving_Proxy {
+	use Field_Saving_Trait;
+
+	/**
+	 * Proxy sanitize/validate call.
+	 *
+	 * @param Field_Interface $field Field instance.
+	 * @param mixed           $value Raw value.
+	 * @return array{value: mixed, valid: bool, errors: array}
+	 */
+	public function run( Field_Interface $field, $value ): array {
+		return $this->sanitize_and_validate( $field, $value );
+	}
+}
 
 /**
  * Class Test_Field_Validation
@@ -17,11 +37,28 @@ use Pedalcms\CassetteCmf\Field\Field_Factory;
 class Test_Field_Validation extends WP_UnitTestCase {
 
 	/**
+	 * Save proxy.
+	 *
+	 * @var Test_Field_Saving_Proxy
+	 */
+	private Test_Field_Saving_Proxy $save_proxy;
+
+	/**
 	 * Reset Field_Factory between tests.
 	 */
 	public function set_up(): void {
 		parent::set_up();
 		Field_Factory::reset();
+		$this->save_proxy = new Test_Field_Saving_Proxy();
+		$_POST            = [];
+	}
+
+	/**
+	 * Reset globals after each test.
+	 */
+	public function tear_down(): void {
+		$_POST = [];
+		parent::tear_down();
 	}
 
 	// =========================================================================
@@ -79,6 +116,36 @@ class Test_Field_Validation extends WP_UnitTestCase {
 		$result = $field->validate( '' );
 
 		$this->assertTrue( $result['valid'] );
+	}
+
+	/**
+	 * Test hidden conditional required field skips validation in save flow.
+	 */
+	public function test_conditional_hidden_field_skips_required_validation(): void {
+		$field = Field_Factory::create(
+			[
+				'name'        => 'ticket_price',
+				'type'        => 'text',
+				'label'       => 'Ticket Price',
+				'required'    => true,
+				'conditional' => [
+					'rules' => [
+						[
+							'field'    => 'is_free',
+							'operator' => '==',
+							'value'    => '0',
+						],
+					],
+				],
+			]
+		);
+
+		$_POST = [ 'is_free' => '1' ];
+
+		$result = $this->save_proxy->run( $field, '' );
+
+		$this->assertTrue( $result['valid'] );
+		$this->assertEmpty( $result['errors'] );
 	}
 
 	// =========================================================================

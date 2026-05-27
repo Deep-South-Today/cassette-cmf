@@ -421,6 +421,60 @@
           "description": "Whether the field is required",
           "default": false
         },
+        "conditional": {
+          "type": "object",
+          "description": "Conditional visibility rules for the field",
+          "properties": {
+            "relation": {
+              "type": "string",
+              "enum": ["AND", "OR"],
+              "default": "AND"
+            },
+            "rules": {
+              "type": "array",
+              "description": "Conditional rules that control field visibility",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "properties": {
+                  "field": {
+                    "type": "string",
+                    "description": "Controlling field name"
+                  },
+                  "operator": {
+                    "type": "string",
+                    "enum": ["==", "!=", ">", ">=", "<", "<=", "in", "not_in", "empty", "not_empty"]
+                  },
+                  "value": {
+                    "description": "Comparison value or values"
+                  },
+                  "values": {
+                    "type": "array",
+                    "description": "Comparison values for in/not_in operators"
+                  }
+                },
+                "required": ["field"],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": ["rules"],
+          "additionalProperties": false
+        },
+        "show_if": {
+          "type": "object",
+          "description": "Legacy single-rule alias for conditional visibility",
+          "properties": {
+            "field": {
+              "type": "string"
+            },
+            "value": {
+              "description": "Comparison value"
+            }
+          },
+          "required": ["field"],
+          "additionalProperties": false
+        },
         "placeholder": {
           "type": "string",
           "description": "Placeholder text for text-based inputs",

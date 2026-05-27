@@ -703,6 +703,7 @@ abstract class Abstract_Field implements Field_Interface {
 			'description' => $this->config['description'] ?? '',
 			'required'    => $this->config['required'] ?? false,
 			'default'     => $this->config['default'] ?? '',
+			'conditional' => $this->get_conditional_config(),
 			'validation'  => $this->validation_rules,
 		];
 	}
@@ -756,7 +757,10 @@ abstract class Abstract_Field implements Field_Interface {
 	 */
 	protected function render_wrapper_start(): string {
 		$classes = [ 'cassette-cmf-field', 'cassette-cmf-field-' . $this->type ];
-		$data_attributes = $this->get_wrapper_data_attributes();
+		$attributes = [
+			'data-field-name' => $this->name,
+			'data-field-type' => $this->type,
+		];
 
 		if ( ! empty( $this->config['class'] ) ) {
 			$classes[] = $this->config['class'];
@@ -766,25 +770,14 @@ abstract class Abstract_Field implements Field_Interface {
 			$classes[] = 'cassette-cmf-field-required';
 		}
 
-		$wrapper_attributes = sprintf(
-			' data-field-name="%s" data-field-type="%s"',
-			$this->esc_attr( $this->name ),
-			$this->esc_attr( $this->type )
-		);
-
-		foreach ( $data_attributes as $attribute_name => $attribute_value ) {
-			$wrapper_attributes .= sprintf(
-				' %s="%s"',
-				$this->esc_attr( $attribute_name ),
-				$this->esc_attr( $attribute_value )
-			);
+		if ( ! empty( $this->get_conditional_config() ) ) {
+			$classes[] = 'cassette-cmf-field-conditional';
+			$attributes = array_merge( $attributes, $this->get_wrapper_data_attributes() );
 		}
 
-		return sprintf(
-			'<div class="%s"%s>',
-			$this->esc_attr( implode( ' ', $classes ) ),
-			$wrapper_attributes
-		);
+		$attributes['class'] = implode( ' ', $classes );
+
+		return '<div' . $this->build_attributes( $attributes ) . '>';
 	}
 
 	/**

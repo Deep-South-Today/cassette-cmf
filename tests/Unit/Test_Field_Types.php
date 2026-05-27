@@ -62,6 +62,35 @@ class Test_Field_Types extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test text field renders conditional wrapper metadata.
+	 */
+	public function test_text_field_renders_conditional_metadata(): void {
+		$field = Field_Factory::create(
+			[
+				'name'        => 'ticket_price',
+				'type'        => 'text',
+				'label'       => 'Ticket Price',
+				'conditional' => [
+					'relation' => 'AND',
+					'rules'    => [
+						[
+							'field'    => 'is_free',
+							'operator' => '==',
+							'value'    => '0',
+						],
+					],
+				],
+			]
+		);
+
+		$html = $field->render( '' );
+
+		$this->assertStringContainsString( 'data-conditional=', $html );
+		$this->assertStringContainsString( 'data-show-if=', $html );
+		$this->assertStringContainsString( 'cassette-cmf-field-conditional', $html );
+	}
+
+	/**
 	 * Test TextField sanitization strips tags.
 	 */
 	public function test_text_field_sanitize(): void {
