@@ -754,7 +754,7 @@
 				});
 
 				if ($matches.length) {
-					return $matches;
+					return this.normalizeControllerFields($matches);
 				}
 			}
 
@@ -762,7 +762,22 @@
 		}
 
 		matchesFieldName(name, fieldName) {
-			return name === fieldName || name === fieldName + '[]' || name.endsWith('[' + fieldName + ']') || name.endsWith('[' + fieldName + '][]');
+			return name === fieldName
+				|| name === fieldName + '[]'
+				|| name.endsWith('_' + fieldName)
+				|| name.endsWith('_' + fieldName + '[]')
+				|| name.endsWith('[' + fieldName + ']')
+				|| name.endsWith('[' + fieldName + '][]');
+		}
+
+		normalizeControllerFields($controllers) {
+			if (!$controllers.length) {
+				return $controllers;
+			}
+
+			const $nonHidden = $controllers.filter((index, element) => (($(element).attr('type') || '').toLowerCase() !== 'hidden'));
+
+			return $nonHidden.length ? $nonHidden : $controllers;
 		}
 
 		evaluateVisibility($field) {

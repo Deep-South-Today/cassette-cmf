@@ -148,6 +148,36 @@ class Test_Field_Validation extends WP_UnitTestCase {
 		$this->assertEmpty( $result['errors'] );
 	}
 
+	/**
+	 * Test prefixed settings field names still resolve conditional controllers.
+	 */
+	public function test_conditional_hidden_field_skips_validation_with_prefixed_controller_name(): void {
+		$field = Field_Factory::create(
+			[
+				'name'        => 'notification_email',
+				'type'        => 'email',
+				'label'       => 'Notification Email',
+				'required'    => true,
+				'conditional' => [
+					'rules' => [
+						[
+							'field'    => 'enable_notifications',
+							'operator' => '==',
+							'value'    => '1',
+						],
+					],
+				],
+			]
+		);
+
+		$_POST = [ 'library-settings_enable_notifications' => '0' ];
+
+		$result = $this->save_proxy->run( $field, '' );
+
+		$this->assertTrue( $result['valid'] );
+		$this->assertEmpty( $result['errors'] );
+	}
+
 	// =========================================================================
 	// Min/Max Length Validation
 	// =========================================================================

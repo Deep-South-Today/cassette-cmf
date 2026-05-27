@@ -483,7 +483,48 @@ abstract class Abstract_Field implements Field_Interface {
 			return $submission_context[ $field_name ];
 		}
 
+		foreach ( $submission_context as $submitted_name => $submitted_value ) {
+			if ( ! is_string( $submitted_name ) ) {
+				continue;
+			}
+
+			if ( $this->matches_conditional_field_name( $submitted_name, $field_name ) ) {
+				return $submitted_value;
+			}
+		}
+
 		return null;
+	}
+
+	/**
+	 * Determine whether a submitted field name matches a conditional controller name.
+	 *
+	 * @param string $submitted_name Submitted field name.
+	 * @param string $field_name Conditional rule field name.
+	 * @return bool
+	 */
+	protected function matches_conditional_field_name( string $submitted_name, string $field_name ): bool {
+		return $submitted_name === $field_name
+			|| $submitted_name === $field_name . '[]'
+			|| $this->string_ends_with( $submitted_name, '_' . $field_name )
+			|| $this->string_ends_with( $submitted_name, '_' . $field_name . '[]' )
+			|| $this->string_ends_with( $submitted_name, '[' . $field_name . ']' )
+			|| $this->string_ends_with( $submitted_name, '[' . $field_name . '][]' );
+	}
+
+	/**
+	 * Polyfill-style string ends-with helper for PHP 7.4 compatibility.
+	 *
+	 * @param string $value Input string.
+	 * @param string $suffix Suffix to test.
+	 * @return bool
+	 */
+	protected function string_ends_with( string $value, string $suffix ): bool {
+		if ( '' === $suffix ) {
+			return true;
+		}
+
+		return substr( $value, -strlen( $suffix ) ) === $suffix;
 	}
 
 	/**
