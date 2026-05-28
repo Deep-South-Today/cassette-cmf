@@ -13,6 +13,7 @@
 
 $wp-blue: #2271b1;
 $wp-red: #d63638;
+$wp-red-darker-10: #b52a2c;
 $wp-text-dark: #1d2327;
 $wp-text-medium: #2c3338;
 $wp-text-light: #646970;
@@ -27,6 +28,13 @@ $select-input-padding: 6px 24px 6px 8px;
 $field-margin-bottom: 20px;
 
 $transition-fast: 0.15s ease-in-out;
+
+// ==========================================================================
+// General
+// ==========================================================================
+.cassette-cmf-field label {
+	width: max-content;
+}
 
 // ==========================================================================
 // Field Wrapper & Container
@@ -89,11 +97,13 @@ $transition-fast: 0.15s ease-in-out;
 		font-size: 14px;
 		line-height: 1.4;
 		box-shadow: 0 0 0 transparent;
-		transition: border-color $transition-fast, box-shadow $transition-fast;
+		transition:
+			border-color $transition-fast,
+			box-shadow $transition-fast;
 
 		&:focus {
-			border-color: $wp-blue;
-			box-shadow: 0 0 0 1px $wp-blue;
+			border-color: var(--wp-admin-theme-color);
+			box-shadow: 0 0 0 1px var(--wp-admin-theme-color);
 			outline: 2px solid transparent;
 		}
 
@@ -151,9 +161,9 @@ $transition-fast: 0.15s ease-in-out;
 	transition: border-color $transition-fast;
 
 	&:focus {
-		border-color: $wp-blue;
+		border-color: var(--wp-admin-theme-color);
 		outline: 2px solid transparent;
-		box-shadow: 0 0 0 1px $wp-blue;
+		box-shadow: 0 0 0 1px var(--wp-admin-theme-color);
 	}
 
 	&[multiple] {
@@ -189,22 +199,85 @@ $transition-fast: 0.15s ease-in-out;
 	}
 }
 
-.cassette-cmf-field input[type="checkbox"] {
-	width: 16px;
-	height: 16px;
-	margin: 0;
-	cursor: pointer;
-	border: 1px solid $wp-border;
-	border-radius: 3px;
-	background-color: #fff;
+.cassette-cmf-field.is-fancy-toggle input[type="checkbox"] {
+	--active-color: var(--wp-admin-theme-color);
+	--inactive-color: #555;
+	--switch-color: #fff;
+	--outline-color: #000;
+	--size: 16px;
+	--border-size: 2px;
+	--checkmark-visibility: visible;
 
-	&:checked {
-		border-color: $wp-blue;
+	appearance: none;
+	cursor: pointer;
+	background: var(--inactive-color);
+	border-radius: var(--size);
+	border: solid var(--border-size) var(--inactive-color);
+	box-sizing: content-box;
+	content: "";
+	cursor: pointer;
+	display: inline-block;
+	height: var(--size);
+	margin: 0 calc(var(--size) * 0.4) 0 0;
+	position: relative;
+	transition: all 0.2s;
+	width: calc(2 * var(--size));
+
+	&::before {
+		content: "";
+		display: inline-block;
+		background: var(--switch-color);
+		border: none;
+		border-radius: var(--size);
+		width: var(--size);
+		height: var(--size);
+		position: absolute;
+		margin: 0;
+		left: 0;
+		top: 0;
+		transition: all 0.2s;
+
+		&:is(:focus, :focus-visible) {
+			outline: none;
+		}
 	}
 
-	&:focus {
-		outline: 2px solid $wp-blue;
+	&::after {
+		position: absolute;
+		right: 0;
+		background: var(--active-color);
+		content: "";
+		display: inline-block;
+		width: var(--size);
+		height: var(--size);
+		opacity: 0;
+		visibility: var(--checkmark-visibility);
+		mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'><path d='M14.83 4.89l1.34.94-5.81 8.38H9.02L5.78 9.67l1.34-1.25 2.57 2.4z'/></svg>");
+	}
+
+	&:checked {
+		border: solid var(--border-size) var(--active-color);
+		background: var(--active-color);
+
+		&::before {
+			left: var(--size);
+		}
+
+		/* Add a checkmark when toggled on. */
+		&::after {
+			opacity: 1;
+			transition: all 0.05s 0.15s;
+		}
+	}
+
+	&:focus-visible {
+		outline: solid 2px var(--outline-color);
 		outline-offset: 2px;
+	}
+
+	&:disabled {
+		opacity: 0.6;
+		cursor: not-allowed;
 	}
 }
 
@@ -236,25 +309,6 @@ $transition-fast: 0.15s ease-in-out;
 	}
 }
 
-.cassette-cmf-field input[type="radio"] {
-	width: 16px;
-	height: 16px;
-	margin: 0;
-	cursor: pointer;
-	border: 1px solid $wp-border;
-	border-radius: 50%;
-	background-color: #fff;
-
-	&:checked {
-		border-color: $wp-blue;
-	}
-
-	&:focus {
-		outline: 2px solid $wp-blue;
-		outline-offset: 2px;
-	}
-}
-
 // ==========================================================================
 // Color Field
 // ==========================================================================
@@ -268,7 +322,7 @@ $transition-fast: 0.15s ease-in-out;
 	cursor: pointer;
 
 	&:focus {
-		border-color: $wp-blue;
+		border-color: var(--wp-admin-theme-color);
 		outline: 2px solid transparent;
 	}
 }
@@ -279,6 +333,7 @@ $transition-fast: 0.15s ease-in-out;
 
 	.wp-color-result {
 		height: 32px;
+		border-color: $wp-border;
 		border-radius: $input-border-radius;
 	}
 }
@@ -532,7 +587,6 @@ $transition-fast: 0.15s ease-in-out;
 				border-color: $wp-border-light;
 				border-bottom-color: #fff;
 				color: $wp-text-dark;
-				font-weight: 600;
 			}
 
 			.dashicons {
@@ -681,7 +735,7 @@ $transition-fast: 0.15s ease-in-out;
 		&.ui-sortable-placeholder {
 			visibility: visible !important;
 			background: #e8f3fd;
-			border: 2px dashed $wp-blue;
+			border: 2px dashed var(--wp-admin-theme-color);
 			height: 50px !important;
 		}
 	}
@@ -773,7 +827,7 @@ $transition-fast: 0.15s ease-in-out;
 		&:hover {
 			background: #f9e9e9;
 			border-color: $wp-red;
-			color: darken($wp-red, 10%);
+			color: $wp-red-darker-10;
 		}
 
 		&:disabled {
@@ -784,9 +838,9 @@ $transition-fast: 0.15s ease-in-out;
 	}
 
 	.cassette-cmf-repeater-row-content {
-		padding: 15px;
 		background: #fff;
 		border-top: 1px solid $wp-border-light;
+		padding: 15px;
 
 		.cassette-cmf-field {
 			margin-bottom: 15px;
@@ -797,31 +851,31 @@ $transition-fast: 0.15s ease-in-out;
 		}
 	}
 
-	.cassette-cmf-repeater-footer {
-		padding: 12px 15px;
-		background: #f6f7f7;
-		border-top: 1px solid $wp-border-light;
-		text-align: center;
+	.cassette-cmf-repeater-actions {
+		padding: 0.5em;
+	}
+
+	.cassette-cmf-repeater-rows:has(.cassette-cmf-repeater-row) {
+		+ .cassette-cmf-repeater-actions {
+			border-top: 1px solid $wp-border-light;
+		}
 	}
 
 	.cassette-cmf-repeater-add {
 		display: inline-flex;
 		align-items: center;
 		gap: 5px;
-		padding: 6px 12px;
-		background: $wp-blue;
-		border: 1px solid darken($wp-blue, 5%);
-		border-radius: $input-border-radius;
+		background: var(--wp-admin-theme-color);
+		border: 1px solid var(--wp-admin-theme-color-darker-10);
 		color: #fff;
 		cursor: pointer;
 		font-size: 13px;
-		font-weight: 600;
 		text-decoration: none;
 		transition: all $transition-fast;
 
 		&:hover {
-			background: darken($wp-blue, 5%);
-			border-color: darken($wp-blue, 10%);
+			background: var(--wp-admin-theme-color-darker-10);
+			border-color: var(--wp-admin-theme-color-darker-20);
 			color: #fff;
 		}
 
@@ -835,6 +889,7 @@ $transition-fast: 0.15s ease-in-out;
 			width: 16px;
 			height: 16px;
 			font-size: 16px;
+			line-height: 1;
 		}
 	}
 }
