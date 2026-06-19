@@ -78,6 +78,7 @@ abstract class Abstract_Field implements Field_Interface {
 			'default'         => '',
 			'required'        => false,
 			'class'           => '',
+			'conditional'     => [],
 			'attributes'      => [],
 			'use_name_prefix' => true,
 		];
@@ -286,6 +287,443 @@ abstract class Abstract_Field implements Field_Interface {
 	}
 
 	/**
+	 * Get normalized conditional configuration.
+	 *
+	 * @return array<string, mixed>
+	 */
+	public function get_conditional_config(): array {
+		return $this->normalize_conditional_config();
+	}
+
+	/**
+	 * Check whether this field should validate for the current submission context.
+	 *
+	 * @param array<string, mixed>|null $submission_context Optional submitted data context.
+	 * @return bool
+	 */
+	public function should_validate( ?array $submission_context = null ): bool {
+		return $this->is_condition_met( $submission_context );
+	}
+
+	/**
+	 * Check whether the field's conditional rules evaluate to visible.
+	 *
+	 * @param array<string, mixed>|null $submission_context Optional submitted data context.
+	 * @return bool
+	 */
+	public function is_condition_met( ?array $submission_context = null ): bool {
+		$conditional = $this->get_conditional_config();
+
+		if ( empty( $conditional ) ) {
+			return true;
+		}
+
+		if ( null === $submission_context ) {
+			$submission_context = $this->get_submission_context();
+		}
+
+		$results = [];
+		foreach ( $conditional['rules'] as $rule ) {
+			$actual_value = $this->get_conditional_context_value( $rule['field'], $submission_context );
+			$results[]    = $this->evaluate_conditional_rule( $rule, $actual_value );
+		}
+
+		if ( empty( $results ) ) {
+			return true;
+		}
+
+		if ( 'OR' === $conditional['relation'] ) {
+			return in_array( true, $results, true );
+		}
+
+		return ! in_array( false, $results, true );
+	}
+
+	/**
+	 * Normalize conditional configuration.
+	 *
+	 * @param array<string, mixed>|null $config Optional config to normalize.
+	 * @return array<string, mixed>
+	 */
+	protected function normalize_conditional_config( ?array $config = null ): array {
+		$config = $config ?? $this->config;
+
+		$raw_conditional = $config['conditional'] ?? [];
+
+		if ( empty( $raw_conditional ) ) {
+			return [];
+		}
+
+		if ( ! is_array( $raw_conditional ) ) {
+			return [];
+		}
+
+		if ( isset( $raw_conditional['field'] ) ) {
+			$raw_conditional = [
+				'relation' => 'AND',
+				'rules'    => [ $raw_conditional ],
+			];
+		}
+
+		$relation = strtoupper( (string) ( $raw_conditional['relation'] ?? 'AND' ) );
+		if ( ! in_array( $relation, [ 'AND', 'OR' ], true ) ) {
+			$relation = 'AND';
+		}
+
+		$rules = [];
+		foreach ( $raw_conditional['rules'] ?? [] as $rule ) {
+			if ( ! is_array( $rule ) ) {
+				continue;
+			}
+
+			$normalized_rule = $this->normalize_conditional_rule( $rule );
+			if ( ! empty( $normalized_rule ) ) {
+				$rules[] = $normalized_rule;
+			}
+		}
+
+		if ( empty( $rules ) ) {
+			return [];
+		}
+
+		return [
+			'relation' => $relation,
+			'rules'    => $rules,
+		];
+	}
+
+	/**
+	 * Normalize a conditional rule.
+	 *
+	 * @param array<string, mixed> $rule Rule configuration.
+	 * @return array<string, mixed>
+	 */
+	protected function normalize_conditional_rule( array $rule ): array {
+		$field = isset( $rule['field'] ) ? trim( (string) $rule['field'] ) : '';
+
+		if ( '' === $field ) {
+			return [];
+		}
+
+		$operator = $this->normalize_conditional_operator( (string) ( $rule['operator'] ?? $rule['compare'] ?? '==' ) );
+
+		$normalized_rule = [
+			'field'    => $field,
+			'operator' => $operator,
+		];
+
+		if ( array_key_exists( 'value', $rule ) ) {
+			$normalized_rule['value'] = $rule['value'];
+		} elseif ( array_key_exists( 'values', $rule ) ) {
+			$normalized_rule['value'] = $rule['values'];
+		}
+
+		if ( in_array( $operator, [ 'empty', 'not_empty' ], true ) ) {
+			unset( $normalized_rule['value'] );
+		}
+
+		return $normalized_rule;
+	}
+
+	/**
+	 * Normalize a conditional operator.
+	 *
+	 * @param string $operator Operator value.
+	 * @return string
+	 */
+	protected function normalize_conditional_operator( string $operator ): string {
+		$operator = strtolower( trim( $operator ) );
+
+		$aliases = [
+			'='         => '==',
+			'eq'        => '==',
+			'equals'    => '==',
+			'==='       => '==',
+			'neq'       => '!=',
+			'not'       => '!=',
+			'!=='       => '!=',
+			'includes'  => 'in',
+			'contains'  => 'in',
+			'excludes'  => 'not_in',
+			'between'   => 'in',
+			'is_empty'  => 'empty',
+			'empty'     => 'empty',
+			'not_empty' => 'not_empty',
+			'filled'    => 'not_empty',
+		];
+
+		$operator = $aliases[ $operator ] ?? $operator;
+
+		$valid_operators = [ '==', '!=', '>', '>=', '<', '<=', 'in', 'not_in', 'empty', 'not_empty' ];
+
+		if ( ! in_array( $operator, $valid_operators, true ) ) {
+			return '==';
+		}
+
+		return $operator;
+	}
+
+	/**
+	 * Resolve a controlling field value from the submission context.
+	 *
+	 * @param string               $field_name Controlling field name.
+	 * @param array<string, mixed> $submission_context Submitted data context.
+	 * @return mixed
+	 */
+	protected function get_conditional_context_value( string $field_name, array $submission_context ) {
+		if ( array_key_exists( $field_name, $submission_context ) ) {
+			return $submission_context[ $field_name ];
+		}
+
+		foreach ( $submission_context as $submitted_name => $submitted_value ) {
+			if ( ! is_string( $submitted_name ) ) {
+				continue;
+			}
+
+			if ( $this->matches_conditional_field_name( $submitted_name, $field_name ) ) {
+				return $submitted_value;
+			}
+		}
+
+		return null;
+	}
+
+	/**
+	 * Determine whether a submitted field name matches a conditional controller name.
+	 *
+	 * @param string $submitted_name Submitted field name.
+	 * @param string $field_name Conditional rule field name.
+	 * @return bool
+	 */
+	protected function matches_conditional_field_name( string $submitted_name, string $field_name ): bool {
+		return $submitted_name === $field_name
+			|| $submitted_name === $field_name . '[]'
+			|| $this->string_ends_with( $submitted_name, '_' . $field_name )
+			|| $this->string_ends_with( $submitted_name, '_' . $field_name . '[]' )
+			|| $this->string_ends_with( $submitted_name, '[' . $field_name . ']' )
+			|| $this->string_ends_with( $submitted_name, '[' . $field_name . '][]' );
+	}
+
+	/**
+	 * Polyfill-style string ends-with helper for PHP 7.4 compatibility.
+	 *
+	 * @param string $value Input string.
+	 * @param string $suffix Suffix to test.
+	 * @return bool
+	 */
+	protected function string_ends_with( string $value, string $suffix ): bool {
+		if ( '' === $suffix ) {
+			return true;
+		}
+
+		return substr( $value, -strlen( $suffix ) ) === $suffix;
+	}
+
+	/**
+	 * Evaluate a single conditional rule.
+	 *
+	 * @param array<string, mixed> $rule Rule configuration.
+	 * @param mixed                $actual_value Current submitted value.
+	 * @return bool
+	 */
+	protected function evaluate_conditional_rule( array $rule, $actual_value ): bool {
+		$operator       = $rule['operator'] ?? '==';
+		$expected_value = $rule['value'] ?? null;
+
+		switch ( $operator ) {
+			case 'empty':
+				return $this->is_empty_value( $actual_value );
+
+			case 'not_empty':
+				return ! $this->is_empty_value( $actual_value );
+
+			case 'in':
+				return $this->evaluate_inclusion_rule( $actual_value, $expected_value );
+
+			case 'not_in':
+				return ! $this->evaluate_inclusion_rule( $actual_value, $expected_value );
+
+			case '>':
+			case '>=':
+			case '<':
+			case '<=':
+				return $this->evaluate_numeric_rule( $actual_value, $expected_value, $operator );
+
+			case '!=':
+				return ! $this->values_match( $actual_value, $expected_value );
+
+			case '==':
+			default:
+				return $this->values_match( $actual_value, $expected_value );
+		}
+	}
+
+	/**
+	 * Evaluate inclusion-style conditional rules.
+	 *
+	 * @param mixed $actual_value Current submitted value.
+	 * @param mixed $expected_value Expected value or values.
+	 * @return bool
+	 */
+	protected function evaluate_inclusion_rule( $actual_value, $expected_value ): bool {
+		$expected_values = is_array( $expected_value ) ? $expected_value : [ $expected_value ];
+
+		if ( is_array( $actual_value ) ) {
+			foreach ( $actual_value as $value ) {
+				if ( $this->evaluate_inclusion_rule( $value, $expected_values ) ) {
+					return true;
+				}
+			}
+
+			return false;
+		}
+
+		foreach ( $expected_values as $expected ) {
+			if ( $this->values_match( $actual_value, $expected ) ) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Evaluate numeric-style conditional rules.
+	 *
+	 * @param mixed  $actual_value Current submitted value.
+	 * @param mixed  $expected_value Expected threshold.
+	 * @param string $operator Comparison operator.
+	 * @return bool
+	 */
+	protected function evaluate_numeric_rule( $actual_value, $expected_value, string $operator ): bool {
+		if ( is_array( $actual_value ) ) {
+			$actual_value = reset( $actual_value );
+		}
+
+		if ( ! is_numeric( $actual_value ) || ! is_numeric( $expected_value ) ) {
+			return false;
+		}
+
+		$actual_value   = (float) $actual_value;
+		$expected_value = (float) $expected_value;
+
+		switch ( $operator ) {
+			case '>':
+				return $actual_value > $expected_value;
+			case '>=':
+				return $actual_value >= $expected_value;
+			case '<':
+				return $actual_value < $expected_value;
+			case '<=':
+				return $actual_value <= $expected_value;
+		}
+
+		return false;
+	}
+
+	/**
+	 * Check whether two values match for conditional evaluation.
+	 *
+	 * @param mixed $actual_value Current submitted value.
+	 * @param mixed $expected_value Expected value.
+	 * @return bool
+	 */
+	protected function values_match( $actual_value, $expected_value ): bool {
+		if ( is_array( $actual_value ) ) {
+			foreach ( $actual_value as $value ) {
+				if ( $this->values_match( $value, $expected_value ) ) {
+					return true;
+				}
+			}
+
+			return false;
+		}
+
+		if ( is_bool( $actual_value ) ) {
+			$actual_value = $actual_value ? '1' : '0';
+		}
+
+		if ( is_bool( $expected_value ) ) {
+			$expected_value = $expected_value ? '1' : '0';
+		}
+
+		return (string) $actual_value === (string) $expected_value;
+	}
+
+	/**
+	 * Check whether a value should be treated as empty.
+	 *
+	 * @param mixed $value Value to inspect.
+	 * @return bool
+	 */
+	protected function is_empty_value( $value ): bool {
+		if ( is_array( $value ) ) {
+			return 0 === count( array_filter( $value, [ $this, 'is_non_empty_value' ] ) );
+		}
+
+		return null === $value || '' === $value;
+	}
+
+	/**
+	 * Check whether a value is non-empty.
+	 *
+	 * @param mixed $value Value to inspect.
+	 * @return bool
+	 */
+	protected function is_non_empty_value( $value ): bool {
+		return ! $this->is_empty_value( $value );
+	}
+
+	/**
+	 * Get wrapper data attributes for conditional configuration.
+	 *
+	 * @return array<string, string>
+	 */
+	protected function get_wrapper_data_attributes(): array {
+		$attributes  = [];
+		$conditional = $this->get_conditional_config();
+
+		if ( empty( $conditional ) ) {
+			return $attributes;
+		}
+
+		$json = $this->encode_json_attribute( $conditional );
+
+		if ( false === $json ) {
+			return $attributes;
+		}
+
+		$attributes['data-conditional'] = $json;
+
+		return $attributes;
+	}
+
+	/**
+	 * Get the current submitted form data.
+	 *
+	 * @return array<string, mixed>
+	 */
+	protected function get_submission_context(): array {
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Read-only access for conditional evaluation; save handlers verify nonces before persisting values.
+		return $_POST;
+	}
+
+	/**
+	 * Encode attribute payloads as JSON.
+	 *
+	 * @param array<string, mixed> $value Value to encode.
+	 * @return string|false
+	 */
+	protected function encode_json_attribute( array $value ) {
+		if ( function_exists( 'wp_json_encode' ) ) {
+			return \wp_json_encode( $value );
+		}
+
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.json_encode_json_encode -- Fallback when WordPress is not loaded, such as unit tests.
+		return json_encode( $value );
+	}
+
+	/**
 	 * Get the field schema
 	 *
 	 * @return array<string, mixed>
@@ -298,6 +736,7 @@ abstract class Abstract_Field implements Field_Interface {
 			'description' => $this->config['description'] ?? '',
 			'required'    => $this->config['required'] ?? false,
 			'default'     => $this->config['default'] ?? '',
+			'conditional' => $this->get_conditional_config(),
 			'validation'  => $this->validation_rules,
 		];
 	}
@@ -350,7 +789,11 @@ abstract class Abstract_Field implements Field_Interface {
 	 * @return string
 	 */
 	protected function render_wrapper_start(): string {
-		$classes = [ 'cassette-cmf-field', 'cassette-cmf-field-' . $this->type ];
+		$classes    = [ 'cassette-cmf-field', 'cassette-cmf-field-' . $this->type ];
+		$attributes = [
+			'data-field-name' => $this->name,
+			'data-field-type' => $this->type,
+		];
 
 		if ( ! empty( $this->config['class'] ) ) {
 			$classes[] = $this->config['class'];
@@ -360,12 +803,14 @@ abstract class Abstract_Field implements Field_Interface {
 			$classes[] = 'cassette-cmf-field-required';
 		}
 
-		return sprintf(
-			'<div class="%s" data-field-name="%s" data-field-type="%s">',
-			$this->esc_attr( implode( ' ', $classes ) ),
-			$this->esc_attr( $this->name ),
-			$this->esc_attr( $this->type )
-		);
+		if ( ! empty( $this->get_conditional_config() ) ) {
+			$classes[]  = 'cassette-cmf-field-conditional';
+			$attributes = array_merge( $attributes, $this->get_wrapper_data_attributes() );
+		}
+
+		$attributes['class'] = implode( ' ', $classes );
+
+		return '<div' . $this->build_attributes( $attributes ) . '>';
 	}
 
 	/**

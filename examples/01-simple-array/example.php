@@ -201,18 +201,33 @@ function cassette_cmf_simple_array_init() {
 						'label'       => 'Enable Email Notifications',
 						'description' => 'Send email reminders for due books',
 					],
-					// Radio - Theme
 					[
-						'name'    => 'display_theme',
-						'type'    => 'radio',
-						'label'   => 'Display Theme',
-						'options' => [
-							'light' => 'Light',
-							'dark'  => 'Dark',
-							'auto'  => 'Auto (System)',
+						'name'        => 'notification_email',
+						'type'        => 'email',
+						'label'       => 'Notification Email',
+						'description' => 'Only used when email notifications are enabled',
+						'conditional' => [
+							'rules' => [
+								[
+									'field'    => 'enable_notifications',
+									'operator' => '==',
+									'value'    => '1',
+								],
+							],
 						],
-						'default' => 'auto',
 					],
+					// Radio - Theme
+						[
+							'name'    => 'display_theme',
+							'type'    => 'radio',
+							'label'   => 'Display Theme',
+							'options' => [
+								'light' => 'Light',
+								'dark'  => 'Dark',
+								'auto'  => 'Auto (System)',
+							],
+							'default' => 'auto',
+						],
 					// Color - Accent Color
 					[
 						'name'    => 'accent_color',

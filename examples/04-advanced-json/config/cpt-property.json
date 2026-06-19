@@ -182,9 +182,24 @@
                       }
                     },
                     {
+                      "name": "has_hoa",
+                      "type": "checkbox",
+                      "label": "Has HOA",
+                      "description": "Enable HOA-specific details for this property"
+                    },
+                    {
                       "name": "hoa_fee",
                       "type": "number",
                       "label": "Monthly HOA Fee ($)",
+                      "conditional": {
+                        "rules": [
+                          {
+                            "field": "has_hoa",
+                            "operator": "==",
+                            "value": "1"
+                          }
+                        ]
+                      },
                       "min": 0
                     }
                   ]

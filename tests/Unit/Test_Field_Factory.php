@@ -130,6 +130,36 @@ class Test_Field_Factory extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test conditional config is normalized in field schema.
+	 */
+	public function test_create_field_with_conditional_config(): void {
+		$field = Field_Factory::create(
+			[
+				'name'        => 'advanced_price',
+				'type'        => 'number',
+				'label'       => 'Advanced Price',
+				'conditional' => [
+					'relation' => 'AND',
+					'rules'    => [
+						[
+							'field'    => 'pricing_mode',
+							'operator' => '==',
+							'value'    => 'advanced',
+						],
+					],
+				],
+			]
+		);
+
+		$schema = $field->get_schema();
+
+		$this->assertSame( 'advanced_price', $field->get_name() );
+		$this->assertArrayHasKey( 'conditional', $schema );
+		$this->assertSame( 'AND', $schema['conditional']['relation'] );
+		$this->assertSame( 'pricing_mode', $schema['conditional']['rules'][0]['field'] );
+	}
+
+	/**
 	 * Test creating a date field.
 	 */
 	public function test_create_date_field(): void {

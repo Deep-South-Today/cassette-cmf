@@ -254,6 +254,117 @@ class Test_Schema_Validator extends WP_UnitTestCase {
 		$this->assertTrue( $result );
 	}
 
+	/**
+	 * Test conditional field configuration is valid.
+	 */
+	public function test_field_with_conditional_config_is_valid(): void {
+		$config = [
+			'cpts' => [
+				[
+					'id'     => 'event',
+					'fields' => [
+						[
+							'name'  => 'is_free',
+							'type'  => 'checkbox',
+							'label' => 'Free Event',
+						],
+						[
+							'name'        => 'ticket_price',
+							'type'        => 'number',
+							'label'       => 'Ticket Price',
+							'conditional' => [
+								'relation' => 'AND',
+								'rules'    => [
+									[
+										'field'    => 'is_free',
+										'operator' => '==',
+										'value'    => '0',
+									],
+								],
+							],
+						],
+					],
+				],
+			],
+		];
+
+		$this->assertTrue( $this->validator->validate( $config ) );
+	}
+
+	/**
+	 * Test conditional field configuration requires rules.
+	 */
+	public function test_field_with_invalid_conditional_config_fails(): void {
+		$config = [
+			'cpts' => [
+				[
+					'id'     => 'event',
+					'fields' => [
+						[
+							'name'        => 'ticket_price',
+							'type'        => 'number',
+							'label'       => 'Ticket Price',
+							'conditional' => [
+								'relation' => 'AND',
+							],
+						],
+					],
+				],
+			],
+		];
+
+		$this->assertFalse( $this->validator->validate( $config ) );
+		$this->assertStringContainsString( 'rules', $this->validator->get_error_message() );
+	}
+
+	/**
+	 * Test repeater sub-fields cannot use conditional config.
+	 */
+	public function test_repeater_sub_field_with_conditional_config_fails(): void {
+		$config = [
+			'cpts' => [
+				[
+					'id'     => 'product',
+					'fields' => [
+						[
+							'name'   => 'variations',
+							'type'   => 'repeater',
+							'label'  => 'Variations',
+							'fields' => [
+								[
+									'name'    => 'variant_type',
+									'type'    => 'select',
+									'label'   => 'Variant Type',
+									'options' => [
+										'physical' => 'Physical',
+										'digital'  => 'Digital',
+									],
+								],
+								[
+									'name'        => 'download_url',
+									'type'        => 'url',
+									'label'       => 'Download URL',
+									'conditional' => [
+										'rules' => [
+											[
+												'field'    => 'variant_type',
+												'operator' => '==',
+												'value'    => 'digital',
+											],
+										],
+									],
+								],
+							],
+						],
+					],
+				],
+			],
+		];
+
+		$this->assertFalse( $this->validator->validate( $config ) );
+		$this->assertStringContainsString( 'cannot define conditional visibility inside a repeater', $this->validator->get_error_message() );
+	}
+
 	// =========================================================================
 	// Field Validation Tests
 	// =========================================================================

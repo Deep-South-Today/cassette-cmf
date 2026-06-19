@@ -53,7 +53,16 @@ trait Field_Saving_Trait {
 	 * @return array{value: mixed, valid: bool, errors: array}
 	 */
 	protected function sanitize_and_validate( Field_Interface $field, $value ): array {
-		$sanitized  = $field->sanitize( $value );
+		$sanitized = $field->sanitize( $value );
+
+		if ( method_exists( $field, 'should_validate' ) && ! $field->should_validate( $this->get_submission_context() ) ) {
+			return [
+				'value'  => $sanitized,
+				'valid'  => true,
+				'errors' => [],
+			];
+		}
+
 		$validation = $field->validate( $sanitized );
 
 		return [
@@ -61,6 +70,16 @@ trait Field_Saving_Trait {
 			'valid'  => $validation['valid'] ?? false,
 			'errors' => $validation['errors'] ?? [],
 		];
+	}
+
+	/**
+	 * Get the current submitted form data.
+	 *
+	 * @return array<string, mixed>
+	 */
+	protected function get_submission_context(): array {
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Read-only access; nonce verification happens in the calling save handlers.
+		return $_POST;
 	}
 
 	/**

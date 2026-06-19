@@ -28,6 +28,7 @@ A top-level settings page with:
 - **Website URL** (url) - Library website
 - **Max Borrowing Days** (number) - Loan period
 - **Enable Notifications** (checkbox) - Email reminders
+- **Notification Email** (email) - Shown only when notifications are enabled
 - **Display Theme** (radio) - Light/Dark/Auto theme
 - **Accent Color** (color) - UI accent color
 
@@ -78,6 +79,7 @@ CassetteCmf::get_field( $field_name, $context, $context_type = 'post', $default 
 3. **Settings Page** - Top-level menu with icon and position
 4. **Common Field Types** - text, textarea, number, date, select, checkbox, radio, email, url, color, custom_html, upload
 5. **Field Options** - required, placeholder, default, min/max, description
+6. **Conditional Fields** - show/hide fields from other field values using `conditional.rules`
 6. **Data Retrieval** - `CassetteCmf::get_field()` for all field types
 
 ## For Advanced Features

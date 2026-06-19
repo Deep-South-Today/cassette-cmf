@@ -605,13 +605,19 @@
 		init() {
 			const self = this;
 
-			$('form').on('submit', function (e) {
+			$('form').off('submit.cassette-cmf-validation').on('submit.cassette-cmf-validation', function (e) {
 				let hasErrors = false;
 
 				$(this).find('.cassette-cmf-field [required]').each(function () {
 					const $field = $(this);
+					const $wrapper = $field.closest('.cassette-cmf-field');
 					const fieldType = $field.attr('type');
 					let isEmpty = false;
+
+					if ($wrapper.hasClass('cassette-cmf-hidden')) {
+						self.clearError($field);
+						return;
+					}
 
 					if (fieldType === 'checkbox' || fieldType === 'radio') {
 						const name = $field.attr('name');
@@ -643,32 +649,282 @@
 	class ConditionalFields extends BaseField {
 		constructor() {
 			super();
-			this.selector = '[data-show-if]';
+			this.selector = '[data-conditional]';
 		}
 
 		init() {
-			$(this.selector).each(function () {
-				const $field = $(this);
-				const showIfData = $field.data('show-if');
+			$(this.selector).each((index, element) => {
+				const $field = $(element);
+				const conditional = this.getConditionalConfig($field);
 
-				if (typeof showIfData === 'object') {
-					const targetField = showIfData.field;
-					const targetValue = showIfData.value;
-					const $targetField = $('[name="' + targetField + '"]');
-
-					const checkVisibility = function () {
-						const currentValue = $targetField.val();
-						if (currentValue == targetValue) {
-							$field.show();
-						} else {
-							$field.hide();
-						}
-					};
-
-					checkVisibility();
-					$targetField.on('change', checkVisibility);
+				if (!conditional || !Array.isArray(conditional.rules) || !conditional.rules.length) {
+					return;
 				}
+
+				this.bindControllerEvents($field, conditional);
+				this.evaluateVisibility($field);
 			});
+		}
+
+		bindControllerEvents($field, conditional) {
+			const boundNames = [];
+
+			conditional.rules.forEach((rule) => {
+				if (!rule.field || boundNames.includes(rule.field)) {
+					return;
+				}
+
+				boundNames.push(rule.field);
+				const $controllers = this.findControllerFields($field, rule.field);
+
+				$controllers.each((index, element) => {
+					$(element)
+						.off('.cassette-cmf-conditional')
+						.on('change.cassette-cmf-conditional input.cassette-cmf-conditional', () => {
+							this.evaluateVisibility($field);
+						});
+				});
+			});
+		}
+
+		getConditionalConfig($field) {
+			const conditionalAttr = $field.attr('data-conditional');
+
+			if (conditionalAttr) {
+				return this.parseConditionalJson(conditionalAttr);
+			}
+
+			return null;
+		}
+
+		parseConditionalJson(value) {
+			if (!value) {
+				return null;
+			}
+
+			if (typeof value === 'object') {
+				return value;
+			}
+
+			try {
+				return JSON.parse(value);
+			} catch (error) {
+				console.error('Invalid conditional configuration:', error);
+				return null;
+			}
+		}
+
+		findControllerFields($field, fieldName) {
+			const $rowScope = $field.closest('.cassette-cmf-repeater-row');
+			const $formScope = $field.closest('form');
+			const scopes = [];
+
+			if ($rowScope.length) {
+				scopes.push($rowScope);
+			}
+
+			if ($formScope.length) {
+				scopes.push($formScope);
+			}
+
+			scopes.push($(document));
+
+			for (let index = 0; index < scopes.length; index++) {
+				const $scope = scopes[index];
+				const $matches = $scope.find('input[name], select[name], textarea[name]').filter((matchIndex, element) => {
+					const name = $(element).attr('name') || '';
+					return this.matchesFieldName(name, fieldName);
+				});
+
+				if ($matches.length) {
+					return this.normalizeControllerFields($matches);
+				}
+			}
+
+			return $();
+		}
+
+		matchesFieldName(name, fieldName) {
+			return name === fieldName
+				|| name === fieldName + '[]'
+				|| name.endsWith('_' + fieldName)
+				|| name.endsWith('_' + fieldName + '[]')
+				|| name.endsWith('[' + fieldName + ']')
+				|| name.endsWith('[' + fieldName + '][]');
+		}
+
+		normalizeControllerFields($controllers) {
+			if (!$controllers.length) {
+				return $controllers;
+			}
+
+			const $nonHidden = $controllers.filter((index, element) => (($(element).attr('type') || '').toLowerCase() !== 'hidden'));
+
+			return $nonHidden.length ? $nonHidden : $controllers;
+		}
+
+		evaluateVisibility($field) {
+			const conditional = this.getConditionalConfig($field);
+
+			if (!conditional || !Array.isArray(conditional.rules) || !conditional.rules.length) {
+				this.toggleField($field, true);
+				return;
+			}
+
+			const relation = conditional.relation === 'OR' ? 'OR' : 'AND';
+			const results = conditional.rules.map((rule) => {
+				const $controllers = this.findControllerFields($field, rule.field);
+				const currentValue = this.getFieldValue($controllers);
+				return this.evaluateRule(rule, currentValue);
+			});
+
+			const shouldShow = relation === 'OR'
+				? results.some(Boolean)
+				: results.every(Boolean);
+
+			this.toggleField($field, shouldShow);
+		}
+
+		getFieldValue($controllers) {
+			if (!$controllers.length) {
+				return '';
+			}
+
+			const $first = $controllers.first();
+			const tagName = ($first.prop('tagName') || '').toLowerCase();
+			const type = ($first.attr('type') || '').toLowerCase();
+
+			if (type === 'radio') {
+				const $checked = $controllers.filter(':checked').first();
+				return $checked.length ? $checked.val() : '';
+			}
+
+			if (type === 'checkbox') {
+				if ($controllers.length === 1) {
+					return $first.is(':checked') ? ($first.val() || '1') : '0';
+				}
+
+				return $controllers.filter(':checked').map((index, element) => $(element).val()).get();
+			}
+
+			if (tagName === 'select' && $first.prop('multiple')) {
+				return $first.val() || [];
+			}
+
+			return $first.val();
+		}
+
+		evaluateRule(rule, currentValue) {
+			const operator = rule.operator || '==';
+			const expectedValue = Object.prototype.hasOwnProperty.call(rule, 'value') ? rule.value : null;
+
+			switch (operator) {
+				case 'empty':
+					return this.isEmptyValue(currentValue);
+				case 'not_empty':
+					return !this.isEmptyValue(currentValue);
+				case 'in':
+					return this.matchesAny(currentValue, Array.isArray(expectedValue) ? expectedValue : [expectedValue]);
+				case 'not_in':
+					return !this.matchesAny(currentValue, Array.isArray(expectedValue) ? expectedValue : [expectedValue]);
+				case '>':
+				case '>=':
+				case '<':
+				case '<=':
+					return this.evaluateNumericRule(currentValue, expectedValue, operator);
+				case '!=':
+					return !this.matchesValue(currentValue, expectedValue);
+				case '==':
+				default:
+					return this.matchesValue(currentValue, expectedValue);
+			}
+		}
+
+		toggleField($field, shouldShow) {
+			const $visibilityContainer = this.getVisibilityContainer($field);
+
+			$field.toggleClass('cassette-cmf-hidden', !shouldShow);
+			$field.attr('aria-hidden', shouldShow ? 'false' : 'true');
+
+			if ($visibilityContainer.length && !$visibilityContainer.is($field)) {
+				$visibilityContainer.toggleClass('cassette-cmf-hidden', !shouldShow);
+				$visibilityContainer.attr('aria-hidden', shouldShow ? 'false' : 'true');
+			}
+
+			$field.find('[required]').each((index, element) => {
+				const $element = $(element);
+
+				if (shouldShow) {
+					if ($element.data('cassette-required')) {
+						$element.prop('required', true);
+						$element.removeData('cassette-required');
+					}
+					return;
+				}
+
+				$element.data('cassette-required', true);
+				$element.prop('required', false);
+			});
+		}
+
+		getVisibilityContainer($field) {
+			const $row = $field.closest('tr');
+
+			if ($row.length && $row.children('th, td').length >= 2) {
+				return $row;
+			}
+
+			return $field;
+		}
+
+		matchesAny(currentValue, expectedValues) {
+			if (Array.isArray(currentValue)) {
+				return currentValue.some((value) => this.matchesAny(value, expectedValues));
+			}
+
+			return expectedValues.some((expectedValue) => this.matchesValue(currentValue, expectedValue));
+		}
+
+		matchesValue(currentValue, expectedValue) {
+			if (Array.isArray(currentValue)) {
+				return currentValue.some((value) => this.matchesValue(value, expectedValue));
+			}
+
+			return String(currentValue) === String(expectedValue);
+		}
+
+		evaluateNumericRule(currentValue, expectedValue, operator) {
+			if (Array.isArray(currentValue)) {
+				currentValue = currentValue.length ? currentValue[0] : '';
+			}
+
+			if (currentValue === '' || expectedValue === '' || isNaN(Number(currentValue)) || isNaN(Number(expectedValue))) {
+				return false;
+			}
+
+			const actual = Number(currentValue);
+			const expected = Number(expectedValue);
+
+			switch (operator) {
+				case '>':
+					return actual > expected;
+				case '>=':
+					return actual >= expected;
+				case '<':
+					return actual < expected;
+				case '<=':
+					return actual <= expected;
+				default:
+					return false;
+			}
+		}
+
+		isEmptyValue(value) {
+			if (Array.isArray(value)) {
+				return value.filter((entry) => !this.isEmptyValue(entry)).length === 0;
+			}
+
+			return value === null || typeof value === 'undefined' || value === '';
 		}
 	}
 

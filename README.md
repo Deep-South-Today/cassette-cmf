@@ -17,6 +17,7 @@ A powerful, flexible Composer library for building WordPress plugins with custom
 - **Custom Taxonomies** - Create taxonomies with custom term meta fields
 - **Settings Pages** - Top-level and submenu pages with automatic form handling
 - **18 Field Types** - Text, textarea, number, email, url, password, date, color, select, checkbox, radio, wysiwyg, upload, custom_html, tabs, metabox, group, repeater
+- **Conditional Fields** - Show and hide fields with declarative `conditional` rules
 - **Container Fields** - Organize fields with tabs, metaboxes, groups, and repeaters
 - **Extend Existing** - Add fields to existing post types, taxonomies, and settings pages
 - **Array Configuration** - Register everything from a single PHP array
@@ -219,6 +220,45 @@ Manager::init()->register_from_json( __DIR__ . '/config.json' );
   ]
 }
 ```
+
+### Conditional Fields
+
+Conditional visibility works in both PHP arrays and JSON configs. Hidden fields keep their submitted value, but they skip validation while their condition is false.
+
+```php
+[
+        'name'        => 'ticket_price',
+        'type'        => 'number',
+        'label'       => 'Ticket Price',
+        'conditional' => [
+                'rules' => [
+                        [
+                                'field'    => 'is_free',
+                                'operator' => '==',
+                                'value'    => '0',
+                        ],
+                ],
+        ],
+]
+```
+
+```json
+{
+    "name": "ticket_price",
+    "type": "number",
+    "conditional": {
+        "rules": [
+            {
+                "field": "is_free",
+                "operator": "==",
+                "value": "0"
+            }
+        ]
+    }
+}
+```
+
+Supported operators: `==`, `!=`, `>`, `>=`, `<`, `<=`, `in`, `not_in`, `empty`, `not_empty`. Use `relation: "OR"` when a field should appear if any rule matches. Conditional fields are supported for regular fields and container contents such as groups, tabs, and metaboxes, but not for repeater sub-fields.
 
 ## Field Types
 

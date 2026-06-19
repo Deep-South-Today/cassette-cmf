@@ -16,7 +16,7 @@ A complete real estate property post type showing all field types and containers
 
 **Metabox: Property Details (Horizontal Tabs)**
 - Tab 1: Basic Info - bedrooms, bathrooms, sqft, lot size, year built, garage
-- Tab 2: Features - amenities (multiple checkbox), flooring (radio), HOA fee
+- Tab 2: Features - amenities (multiple checkbox), flooring (radio), HOA fee shown only when HOA is enabled
 - Tab 3: Description - short description (textarea), full description (wysiwyg)
 - Tab 4: Media - virtual tour URL, video URL, floor plan URL
 
@@ -101,6 +101,29 @@ A comprehensive agency settings page demonstrating proper container field usage:
 | `metabox` | All CPT field containers |
 | `group` | Location, Shipping, Social Profiles, CTA |
 | `repeater` | Open House Schedule |
+
+## Conditional Fields
+
+This advanced JSON example includes conditional field visibility using the shared `conditional` property. In `config/cpt-property.json`, the `hoa_fee` field is displayed only when `has_hoa` is checked:
+
+```json
+{
+    "name": "hoa_fee",
+    "type": "number",
+    "label": "Monthly HOA Fee ($)",
+    "conditional": {
+        "rules": [
+            {
+                "field": "has_hoa",
+                "operator": "==",
+                "value": "1"
+            }
+        ]
+    }
+}
+```
+
+Conditional visibility is not supported inside repeater sub-fields. Keep repeater rows unconditional or split the dependent inputs outside the repeater.
 
 ## Loading Multiple JSON Files
 

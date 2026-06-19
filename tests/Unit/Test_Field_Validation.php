@@ -8,6 +8,7 @@
  */
 
 use Pedalcms\CassetteCmf\Field\Field_Factory;
+use Pedalcms\CassetteCmf\Field\Field_Interface;
 
 /**
  * Class Test_Field_Validation
@@ -17,11 +18,28 @@ use Pedalcms\CassetteCmf\Field\Field_Factory;
 class Test_Field_Validation extends WP_UnitTestCase {
 
 	/**
+	 * Save proxy.
+	 *
+	 * @var Test_Field_Saving_Proxy
+	 */
+	private Test_Field_Saving_Proxy $save_proxy;
+
+	/**
 	 * Reset Field_Factory between tests.
 	 */
 	public function set_up(): void {
 		parent::set_up();
 		Field_Factory::reset();
+		$this->save_proxy = new Test_Field_Saving_Proxy();
+		$_POST            = [];
+	}
+
+	/**
+	 * Reset globals after each test.
+	 */
+	public function tear_down(): void {
+		$_POST = [];
+		parent::tear_down();
 	}
 
 	// =========================================================================
@@ -79,6 +97,66 @@ class Test_Field_Validation extends WP_UnitTestCase {
 		$result = $field->validate( '' );
 
 		$this->assertTrue( $result['valid'] );
+	}
+
+	/**
+	 * Test hidden conditional required field skips validation in save flow.
+	 */
+	public function test_conditional_hidden_field_skips_required_validation(): void {
+		$field = Field_Factory::create(
+			[
+				'name'        => 'ticket_price',
+				'type'        => 'text',
+				'label'       => 'Ticket Price',
+				'required'    => true,
+				'conditional' => [
+					'rules' => [
+						[
+							'field'    => 'is_free',
+							'operator' => '==',
+							'value'    => '0',
+						],
+					],
+				],
+			]
+		);
+
+		$_POST = [ 'is_free' => '1' ];
+
+		$result = $this->save_proxy->run( $field, '' );
+
+		$this->assertTrue( $result['valid'] );
+		$this->assertEmpty( $result['errors'] );
+	}
+
+	/**
+	 * Test prefixed settings field names still resolve conditional controllers.
+	 */
+	public function test_conditional_hidden_field_skips_validation_with_prefixed_controller_name(): void {
+		$field = Field_Factory::create(
+			[
+				'name'        => 'notification_email',
+				'type'        => 'email',
+				'label'       => 'Notification Email',
+				'required'    => true,
+				'conditional' => [
+					'rules' => [
+						[
+							'field'    => 'enable_notifications',
+							'operator' => '==',
+							'value'    => '1',
+						],
+					],
+				],
+			]
+		);
+
+		$_POST = [ 'library-settings_enable_notifications' => '0' ];
+
+		$result = $this->save_proxy->run( $field, '' );
+
+		$this->assertTrue( $result['valid'] );
+		$this->assertEmpty( $result['errors'] );
 	}
 
 	// =========================================================================

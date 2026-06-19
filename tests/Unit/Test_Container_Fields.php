@@ -239,6 +239,49 @@ class Test_Container_Fields extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test repeater rejects conditional sub-fields.
+	 */
+	public function test_repeater_conditional_sub_field_is_not_supported(): void {
+		$this->expectException( InvalidArgumentException::class );
+		$this->expectExceptionMessage( 'Conditional fields are not supported inside repeaters.' );
+
+		Field_Factory::create(
+			[
+				'name'         => 'variations',
+				'type'         => 'repeater',
+				'label'        => 'Variations',
+				'button_label' => 'Add Variation',
+				'fields'       => [
+					[
+						'name'    => 'variant_type',
+						'type'    => 'select',
+						'label'   => 'Variant Type',
+						'options' => [
+							'simple' => 'Simple',
+							'custom' => 'Custom',
+						],
+					],
+					[
+						'name'        => 'custom_variant_label',
+						'type'        => 'text',
+						'label'       => 'Custom Variant Label',
+						'required'    => true,
+						'conditional' => [
+							'rules' => [
+								[
+									'field'    => 'variant_type',
+									'operator' => '==',
+									'value'    => 'custom',
+								],
+							],
+						],
+					],
+				],
+			]
+		);
+	}
+
+	/**
 	 * Test MetaboxField renders wrapper.
 	 */
 	public function test_metabox_field_renders(): void {

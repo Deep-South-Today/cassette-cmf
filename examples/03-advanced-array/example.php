@@ -32,7 +32,7 @@ use Pedalcms\CassetteCmf\CassetteCmf;
  * 4. Adding fields to existing taxonomies (category)
  * 5. Adding fields to existing post types (post, page)
  * 6. Adding fields to existing settings pages (general)
- * 7. All 16 field types:
+ * 7. All 18 field types:
  *    - Basic: text, textarea, number, email, url, password, date, color
  *    - Choice: select, checkbox, radio
  *    - Rich: wysiwyg
@@ -87,11 +87,26 @@ function cassette_cmf_advanced_array_init() {
 									'step'  => 0.01,
 								],
 								[
-									'name'  => 'sale_price',
-									'type'  => 'number',
-									'label' => 'Sale Price ($)',
-									'min'   => 0,
-									'step'  => 0.01,
+									'name'        => 'on_sale',
+									'type'        => 'checkbox',
+									'label'       => 'On Sale',
+									'description' => 'Enable sale pricing for this product',
+								],
+								[
+									'name'        => 'sale_price',
+									'type'        => 'number',
+									'label'       => 'Sale Price ($)',
+									'conditional' => [
+										'rules' => [
+											[
+												'field'    => 'on_sale',
+												'operator' => '==',
+												'value'    => '1',
+											],
+										],
+									],
+									'min'         => 0,
+									'step'        => 0.01,
 								],
 								[
 									'name'    => 'stock_status',
@@ -103,6 +118,21 @@ function cassette_cmf_advanced_array_init() {
 										'backorder'  => 'On Backorder',
 									],
 									'default' => 'instock',
+								],
+								[
+									'name'        => 'backorder_note',
+									'type'        => 'text',
+									'label'       => 'Backorder Note',
+									'description' => 'Shown only when the product is on backorder',
+									'conditional' => [
+										'rules' => [
+											[
+												'field'    => 'stock_status',
+												'operator' => '==',
+												'value'    => 'backorder',
+											],
+										],
+									],
 								],
 								[
 									'name'  => 'quantity',
@@ -289,6 +319,15 @@ function cassette_cmf_advanced_array_init() {
 											'label' => 'Variation SKU',
 										],
 										[
+											'name'    => 'variant_type',
+											'type'    => 'select',
+											'label'   => 'Variant Type',
+											'options' => [
+												'physical' => 'Physical',
+												'digital'  => 'Digital',
+											],
+										],
+										[
 											'name'  => 'variant_price',
 											'type'  => 'number',
 											'label' => 'Price',
@@ -300,6 +339,12 @@ function cassette_cmf_advanced_array_init() {
 											'type'  => 'number',
 											'label' => 'Stock',
 											'min'   => 0,
+										],
+										[
+											'name'        => 'download_url',
+											'type'        => 'url',
+											'label'       => 'Download URL',
+											'description' => 'Optional link for digital variations. Repeater sub-fields do not support conditional visibility.',
 										],
 									],
 								],

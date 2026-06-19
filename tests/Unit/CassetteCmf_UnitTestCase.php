@@ -28,23 +28,13 @@ abstract class CassetteCmf_UnitTestCase extends WP_UnitTestCase {
 	 * Override to ignore block registry notices that may occur in WordPress 6.5+.
 	 */
 	public function assert_post_conditions(): void {
-		// Filter out block registry notices before parent assertion.
-		$caught_doing_it_wrong = $this->caught_doing_it_wrong;
+		// Ignore block registry notices keyed by function name before parent assertion.
+		$ignored_notices = [
+			'WP_Block_Type_Registry::register'     => true,
+			'WP_Block_Bindings_Registry::register' => true,
+		];
 
-		$filtered = array_filter(
-			$caught_doing_it_wrong,
-			function ( $notice ) {
-				// Ignore block registry notices that occur during WordPress init.
-				$ignored_notices = [
-					'WP_Block_Type_Registry::register',
-					'WP_Block_Bindings_Registry::register',
-				];
-				return ! in_array( $notice, $ignored_notices, true );
-			}
-		);
-
-		// Replace the caught notices with filtered ones.
-		$this->caught_doing_it_wrong = $filtered;
+		$this->caught_doing_it_wrong = array_diff_key( $this->caught_doing_it_wrong, $ignored_notices );
 
 		parent::assert_post_conditions();
 	}

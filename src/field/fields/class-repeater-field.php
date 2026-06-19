@@ -38,6 +38,18 @@ use Pedalcms\CassetteCmf\Field\Field_Factory;
 class Repeater_Field extends Abstract_Field {
 
 	/**
+	 * Constructor.
+	 *
+	 * @param string               $name   Field name/identifier.
+	 * @param string               $type   Field type.
+	 * @param array<string, mixed> $config Field configuration.
+	 */
+	public function __construct( string $name, string $type, array $config = [] ) {
+		parent::__construct( $name, $type, $config );
+		$this->assert_no_conditional_sub_fields( $this->config['fields'] ?? [] );
+	}
+
+	/**
 	 * Get default configuration values
 	 *
 	 * @return array<string, mixed>
@@ -66,6 +78,46 @@ class Repeater_Field extends Abstract_Field {
 	 */
 	public function get_sub_fields(): array {
 		return $this->config['fields'] ?? [];
+	}
+
+	/**
+	 * Ensure repeater sub-fields do not define conditional visibility.
+	 *
+	 * @param array<array<string, mixed>> $fields Field definitions.
+	 * @return void
+	 * @throws \InvalidArgumentException When a conditional sub-field is found.
+	 */
+	protected function assert_no_conditional_sub_fields( array $fields ): void {
+		foreach ( $fields as $field ) {
+			if ( ! is_array( $field ) ) {
+				continue;
+			}
+
+			$field_name = $field['name'] ?? 'unknown';
+
+			if ( ! empty( $field['conditional'] ) ) {
+				// phpcs:disable WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Exception messages are not rendered directly as HTML output.
+				throw new \InvalidArgumentException(
+					sprintf(
+						'Repeater sub-field "%s" cannot define conditional visibility. Conditional fields are not supported inside repeaters.',
+						$this->esc_html( (string) $field_name )
+					)
+				);
+				// phpcs:enable WordPress.Security.EscapeOutput.ExceptionNotEscaped
+			}
+
+			if ( ! empty( $field['fields'] ) && is_array( $field['fields'] ) ) {
+				$this->assert_no_conditional_sub_fields( $field['fields'] );
+			}
+
+			if ( ! empty( $field['tabs'] ) && is_array( $field['tabs'] ) ) {
+				foreach ( $field['tabs'] as $tab ) {
+					if ( isset( $tab['fields'] ) && is_array( $tab['fields'] ) ) {
+						$this->assert_no_conditional_sub_fields( $tab['fields'] );
+					}
+				}
+			}
+		}
 	}
 
 	/**

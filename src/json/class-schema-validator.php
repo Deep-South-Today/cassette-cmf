@@ -352,6 +352,9 @@ class Schema_Validator {
 				$this->errors[] = "{$path}.fields must contain at least one field";
 			} else {
 				foreach ( $field['fields'] as $nested_index => $nested_field ) {
+					if ( $this->field_has_conditional_config( $nested_field ) ) {
+						$this->errors[] = "{$path}.fields[{$nested_index}] cannot define conditional visibility inside a repeater";
+					}
 					$this->validate_field( $nested_field, "{$path}.fields[{$nested_index}]" );
 				}
 			}
@@ -523,6 +526,118 @@ class Schema_Validator {
 				$this->errors[] = "{$path}.priority must be one of: " . implode( ', ', $valid_priorities );
 			}
 		}
+
+		if ( isset( $field['conditional'] ) ) {
+			$this->validate_conditional_property( $field['conditional'], "{$path}.conditional" );
+		}
+	}
+
+	/**
+	 * Validate conditional field configuration.
+	 *
+	 * @param mixed  $conditional Conditional configuration.
+	 * @param string $path Path for error reporting.
+	 * @return void
+	 */
+	private function validate_conditional_property( $conditional, string $path ): void {
+		if ( ! is_array( $conditional ) ) {
+			$this->errors[] = "{$path} must be an object/array";
+			return;
+		}
+
+		if ( isset( $conditional['field'] ) ) {
+			$conditional = [
+				'relation' => 'AND',
+				'rules'    => [ $conditional ],
+			];
+		}
+
+		$relation = $conditional['relation'] ?? 'AND';
+		if ( ! is_string( $relation ) || ! in_array( strtoupper( $relation ), [ 'AND', 'OR' ], true ) ) {
+			$this->errors[] = "{$path}.relation must be one of: AND, OR";
+		}
+
+		if ( ! isset( $conditional['rules'] ) ) {
+			$this->errors[] = "{$path} missing required field 'rules'";
+			return;
+		}
+
+		if ( ! is_array( $conditional['rules'] ) || count( $conditional['rules'] ) === 0 ) {
+			$this->errors[] = "{$path}.rules must be a non-empty array";
+			return;
+		}
+
+		foreach ( $conditional['rules'] as $index => $rule ) {
+			$this->validate_conditional_rule( $rule, "{$path}.rules[{$index}]" );
+		}
+	}
+
+	/**
+	 * Validate a conditional rule.
+	 *
+	 * @param mixed  $rule Rule configuration.
+	 * @param string $path Path for error reporting.
+	 * @return void
+	 */
+	private function validate_conditional_rule( $rule, string $path ): void {
+		if ( ! is_array( $rule ) ) {
+			$this->errors[] = "{$path} must be an object/array";
+			return;
+		}
+
+		if ( empty( $rule['field'] ) || ! is_string( $rule['field'] ) ) {
+			$this->errors[] = "{$path}.field must be a string";
+		}
+
+		$operator        = $rule['operator'] ?? $rule['compare'] ?? '==';
+		$valid_operators = [ '==', '!=', '>', '>=', '<', '<=', 'in', 'not_in', 'empty', 'not_empty', '=', 'eq', 'equals', 'neq', 'not', 'contains', 'includes', 'excludes', 'is_empty', 'filled' ];
+
+		if ( ! is_string( $operator ) || ! in_array( $operator, $valid_operators, true ) ) {
+			$this->errors[] = "{$path}.operator must be a supported comparison operator";
+		}
+
+		$normalized_operator = is_string( $operator ) ? strtolower( $operator ) : '';
+		if ( ! in_array( $normalized_operator, [ 'empty', 'is_empty', 'not_empty', 'filled' ], true ) && ! array_key_exists( 'value', $rule ) && ! array_key_exists( 'values', $rule ) ) {
+			$this->errors[] = "{$path} must define 'value' or 'values'";
+		}
+	}
+
+	/**
+	 * Check whether a nested field definition contains conditional config.
+	 *
+	 * @param mixed $field Field configuration.
+	 * @return bool
+	 */
+	private function field_has_conditional_config( $field ): bool {
+		if ( ! is_array( $field ) ) {
+			return false;
+		}
+
+		if ( ! empty( $field['conditional'] ) ) {
+			return true;
+		}
+
+		if ( ! empty( $field['fields'] ) && is_array( $field['fields'] ) ) {
+			foreach ( $field['fields'] as $nested_field ) {
+				if ( $this->field_has_conditional_config( $nested_field ) ) {
+					return true;
+				}
+			}
+		}
+
+		if ( ! empty( $field['tabs'] ) && is_array( $field['tabs'] ) ) {
+			foreach ( $field['tabs'] as $tab ) {
+				if ( isset( $tab['fields'] ) && is_array( $tab['fields'] ) ) {
+					foreach ( $tab['fields'] as $nested_field ) {
+						if ( $this->field_has_conditional_config( $nested_field ) ) {
+							return true;
+						}
+					}
+				}
+			}
+		}
+
+		return false;
 	}
 
 	/**
