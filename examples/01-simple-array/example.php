@@ -217,17 +217,48 @@ function cassette_cmf_simple_array_init() {
 						],
 					],
 					// Radio - Theme
-						[
-							'name'    => 'display_theme',
-							'type'    => 'radio',
-							'label'   => 'Display Theme',
-							'options' => [
-								'light' => 'Light',
-								'dark'  => 'Dark',
-								'auto'  => 'Auto (System)',
-							],
-							'default' => 'auto',
+					[
+						'name'    => 'display_theme',
+						'type'    => 'radio',
+						'label'   => 'Display Theme',
+						'options' => [
+							'light' => 'Light',
+							'dark'  => 'Dark',
+							'auto'  => 'Auto (System)',
 						],
+						'default' => 'auto',
+					],
+					// Multiple fields can depend on the same controller and value.
+					[
+						'name'        => 'dark_theme_heading',
+						'type'        => 'text',
+						'label'       => 'Dark Theme Heading',
+						'description' => 'Heading displayed when the dark theme is active',
+						'conditional' => [
+							'rules' => [
+								[
+									'field'    => 'display_theme',
+									'operator' => '==',
+									'value'    => 'dark',
+								],
+							],
+						],
+					],
+					[
+						'name'        => 'dark_theme_footer_text',
+						'type'        => 'text',
+						'label'       => 'Dark Theme Footer Text',
+						'description' => 'Footer text displayed when the dark theme is active',
+						'conditional' => [
+							'rules' => [
+								[
+									'field'    => 'display_theme',
+									'operator' => '==',
+									'value'    => 'dark',
+								],
+							],
+						],
+					],
 					// Color - Accent Color
 					[
 						'name'    => 'accent_color',

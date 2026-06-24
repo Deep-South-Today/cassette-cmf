@@ -653,6 +653,10 @@
 		}
 
 		init() {
+			const controllerDependencies = new Map();
+
+			this.clearControllerEvents();
+
 			$(this.selector).each((index, element) => {
 				const $field = $(element);
 				const conditional = this.getConditionalConfig($field);
@@ -661,12 +665,18 @@
 					return;
 				}
 
-				this.bindControllerEvents($field, conditional);
+				this.collectControllerDependencies($field, conditional, controllerDependencies);
 				this.evaluateVisibility($field);
 			});
+
+			this.bindControllerEvents(controllerDependencies);
 		}
 
-		bindControllerEvents($field, conditional) {
+		clearControllerEvents() {
+			$('input[name], select[name], textarea[name]').off('.cassette-cmf-conditional');
+		}
+
+		collectControllerDependencies($field, conditional, controllerDependencies) {
 			const boundNames = [];
 
 			conditional.rules.forEach((rule) => {
@@ -678,11 +688,21 @@
 				const $controllers = this.findControllerFields($field, rule.field);
 
 				$controllers.each((index, element) => {
-					$(element)
-						.off('.cassette-cmf-conditional')
-						.on('change.cassette-cmf-conditional input.cassette-cmf-conditional', () => {
-							this.evaluateVisibility($field);
-						});
+					if (!controllerDependencies.has(element)) {
+						controllerDependencies.set(element, new Set());
+					}
+
+					controllerDependencies.get(element).add($field.get(0));
+				});
+			});
+		}
+
+		bindControllerEvents(controllerDependencies) {
+			controllerDependencies.forEach((dependentFields, controller) => {
+				$(controller).on('change.cassette-cmf-conditional input.cassette-cmf-conditional', () => {
+					dependentFields.forEach((field) => {
+						this.evaluateVisibility($(field));
+					});
 				});
 			});
 		}
