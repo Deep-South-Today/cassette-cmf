@@ -79,8 +79,8 @@ CassetteCmf::get_field( $field_name, $context, $context_type = 'post', $default 
 3. **Settings Page** - Top-level menu with icon and position
 4. **Common Field Types** - text, textarea, number, date, select, checkbox, radio, email, url, color, custom_html, upload
 5. **Field Options** - required, placeholder, default, min/max, description
-6. **Conditional Fields** - show/hide fields from other field values using `conditional.rules`
-6. **Data Retrieval** - `CassetteCmf::get_field()` for all field types
+6. **Conditional Fields** - show/hide fields using `conditional.rules`
+7. **Data Retrieval** - `CassetteCmf::get_field()` for all field types
 
 ## For Advanced Features
 
