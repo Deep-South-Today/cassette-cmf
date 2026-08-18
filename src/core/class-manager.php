@@ -213,11 +213,21 @@ class Manager {
 	 * Accepts a configuration array and registers custom post types,
 	 * settings pages, taxonomies, and their associated fields.
 	 *
+	 * Filterable via 'cassette_cmf_register_config' (the whole array), and,
+	 * per entity, 'cassette_cmf_{cpt,taxonomy,settings_page}_config' /
+	 * '..._config_{id}' and 'cassette_cmf_fields' / 'cassette_cmf_fields_{id}'
+	 * — see register_cpt_from_array(), register_taxonomy_from_array(), and
+	 * register_settings_page_from_array().
+	 *
 	 * @param array<string, mixed> $config Configuration array.
 	 * @return self
 	 * @throws \InvalidArgumentException If configuration is invalid.
 	 */
 	public function register_from_array( array $config ): self {
+		if ( function_exists( 'apply_filters' ) ) {
+			$config = apply_filters( 'cassette_cmf_register_config', $config );
+		}
+
 		// Register custom post types
 		if ( ! empty( $config['cpts'] ) && is_array( $config['cpts'] ) ) {
 			foreach ( $config['cpts'] as $cpt_config ) {
@@ -246,7 +256,40 @@ class Manager {
 	}
 
 	/**
+	 * Apply a broad and an id-suffixed WordPress filter to a value
+	 *
+	 * The id-suffixed hook lets an addon target one entity or field group
+	 * without walking the whole configuration array. It omits $id from
+	 * its own callback arguments, since the id is already encoded in the
+	 * hook name; $extra_args (e.g. an entity type context) is passed to
+	 * both hooks.
+	 *
+	 * Guarded by function_exists() so callers keep working when
+	 * WordPress isn't loaded (e.g. the unit test suite).
+	 *
+	 * @param string       $tag         Base filter tag.
+	 * @param mixed        $value       Value to filter.
+	 * @param string       $id          Entity or field-group id, appended to $tag for the specific hook.
+	 * @param array<mixed> $extra_args  Additional arguments passed after $value/$id to both hooks.
+	 * @return mixed The filtered value, or $value unchanged if apply_filters() is unavailable.
+	 */
+	private function apply_id_filters( string $tag, $value, string $id, array $extra_args = [] ) {
+		if ( ! function_exists( 'apply_filters' ) ) {
+			return $value;
+		}
+
+		$value = apply_filters( $tag, $value, $id, ...$extra_args );
+
+		return apply_filters( $tag . '_' . $id, $value, ...$extra_args );
+	}
+
+	/**
 	 * Register a custom post type from array configuration
+	 *
+	 * Filterable via 'cassette_cmf_cpt_config' / 'cassette_cmf_cpt_config_{id}'
+	 * (the whole CPT config) and 'cassette_cmf_fields' / 'cassette_cmf_fields_{id}'
+	 * (just the fields array), so an addon can add, remove, or modify fields
+	 * on a CPT it did not define.
 	 *
 	 * @param array<string, mixed> $config CPT configuration.
 	 * @return void
@@ -258,8 +301,10 @@ class Manager {
 		}
 
 		$post_type = $config['id'];
-		$args      = $config['args'] ?? [];
-		$fields    = $config['fields'] ?? [];
+		$config    = $this->apply_id_filters( 'cassette_cmf_cpt_config', $config, $post_type );
+
+		$args   = $config['args'] ?? [];
+		$fields = $this->apply_id_filters( 'cassette_cmf_fields', $config['fields'] ?? [], $post_type, [ 'cpt' ] );
 
 		// Check if this is an existing post type
 		$is_existing = function_exists( 'post_type_exists' ) && post_type_exists( $post_type );
@@ -285,6 +330,12 @@ class Manager {
 	/**
 	 * Register a settings page from array configuration
 	 *
+	 * Filterable via 'cassette_cmf_settings_page_config' /
+	 * 'cassette_cmf_settings_page_config_{id}' (the whole page config) and
+	 * 'cassette_cmf_fields' / 'cassette_cmf_fields_{id}' (just the fields
+	 * array), so an addon can add, remove, or modify fields on a settings
+	 * page it did not define.
+	 *
 	 * @param array<string, mixed> $config Settings page configuration.
 	 * @return void
 	 * @throws \InvalidArgumentException If required fields are missing.
@@ -295,7 +346,9 @@ class Manager {
 		}
 
 		$page_id = $config['id'];
-		$fields  = $config['fields'] ?? [];
+		$config  = $this->apply_id_filters( 'cassette_cmf_settings_page_config', $config, $page_id );
+
+		$fields = $this->apply_id_filters( 'cassette_cmf_fields', $config['fields'] ?? [], $page_id, [ 'settings_page' ] );
 
 		// Check if this is creating a new settings page or adding to existing
 		$settings_properties = [
@@ -336,6 +389,12 @@ class Manager {
 	/**
 	 * Register a taxonomy from array configuration
 	 *
+	 * Filterable via 'cassette_cmf_taxonomy_config' /
+	 * 'cassette_cmf_taxonomy_config_{id}' (the whole taxonomy config) and
+	 * 'cassette_cmf_fields' / 'cassette_cmf_fields_{id}' (just the fields
+	 * array), so an addon can add, remove, or modify fields on a taxonomy
+	 * it did not define.
+	 *
 	 * @param array<string, mixed> $config Taxonomy configuration.
 	 * @return void
 	 * @throws \InvalidArgumentException If required fields are missing.
@@ -345,10 +404,12 @@ class Manager {
 			throw new \InvalidArgumentException( 'Taxonomy configuration must include "id".' );
 		}
 
-		$taxonomy    = $config['id'];
+		$taxonomy = $config['id'];
+		$config   = $this->apply_id_filters( 'cassette_cmf_taxonomy_config', $config, $taxonomy );
+
 		$args        = $config['args'] ?? [];
 		$object_type = $config['object_type'] ?? [ 'post' ];
-		$fields      = $config['fields'] ?? [];
+		$fields      = $this->apply_id_filters( 'cassette_cmf_fields', $config['fields'] ?? [], $taxonomy, [ 'taxonomy' ] );
 
 		// Ensure object_type is an array
 		if ( ! is_array( $object_type ) ) {

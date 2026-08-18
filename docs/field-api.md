@@ -13,6 +13,7 @@ Complete guide to creating, extending, and using fields in Cassette-CMF.
 - [Asset Enqueuing](#asset-enqueuing)
 - [Using FieldFactory](#using-fieldfactory)
 - [Integration with CPT and Settings](#integration-with-cpt-and-settings)
+- [Hooks and Filters](#hooks-and-filters)
 - [Advanced Examples](#advanced-examples)
 - [Best Practices](#best-practices)
 
@@ -1021,6 +1022,74 @@ $handler->add_fields('general', [
     ],
 ]);
 ```
+
+---
+
+## Hooks and Filters
+
+Configuration passed to `register_from_array()` (and, since `register_from_json()` decodes to the same array shape and calls it internally, `register_from_json()` too) can be intercepted by other plugins or the host theme via WordPress filters, so an addon can add, remove, or modify fields on a CPT, taxonomy, or settings page it did not itself define.
+
+### Field-level filters (the common case)
+
+Every place fields are extracted from a CPT, taxonomy, or settings page config passes them through:
+
+- `cassette_cmf_fields` — `apply_filters( 'cassette_cmf_fields', $fields, $id, $context )`, where `$context` is `'cpt'`, `'taxonomy'`, or `'settings_page'`.
+- `cassette_cmf_fields_{id}` — `apply_filters( "cassette_cmf_fields_{$id}", $fields, $context )`, scoped to one entity by id, so a callback doesn't need to inspect `$id` itself to decide whether it applies.
+
+```php
+// Add a field to the "book" CPT from another plugin, without touching
+// wherever "book" itself is registered.
+add_filter( 'cassette_cmf_fields_book', function ( array $fields ) {
+    $fields[] = [
+        'name'  => 'added_by_my_addon',
+        'type'  => 'text',
+        'label' => 'Added By My Addon',
+    ];
+    return $fields;
+} );
+
+// Or act on every entity's fields, using $id/$context to decide.
+add_filter( 'cassette_cmf_fields', function ( array $fields, string $id, string $context ) {
+    if ( 'cpt' === $context ) {
+        // ...
+    }
+    return $fields;
+}, 10, 3 );
+```
+
+### Entity-level filters
+
+For changes beyond the fields list — e.g. overriding a CPT's `args`, or a settings page's `capability` — the whole per-entity config is filterable before it's split into `args`/`fields`/etc.:
+
+- `cassette_cmf_cpt_config` / `cassette_cmf_cpt_config_{id}`
+- `cassette_cmf_taxonomy_config` / `cassette_cmf_taxonomy_config_{id}`
+- `cassette_cmf_settings_page_config` / `cassette_cmf_settings_page_config_{id}`
+
+```php
+add_filter( 'cassette_cmf_cpt_config_book', function ( array $config ) {
+    $config['args']['menu_icon'] = 'dashicons-book-alt';
+    return $config;
+} );
+```
+
+### Whole-configuration filter
+
+`cassette_cmf_register_config` runs once, at the top of `register_from_array()`, over the entire configuration array (`cpts`, `taxonomies`, `settings_pages` keys) — coarse-grained, for rewriting the whole thing or injecting a new entity entirely:
+
+```php
+add_filter( 'cassette_cmf_register_config', function ( array $config ) {
+    $config['cpts'][] = [
+        'id'   => 'testimonial',
+        'args' => [ 'label' => 'Testimonials', 'public' => true ],
+    ];
+    return $config;
+} );
+```
+
+### Other hooks
+
+- `cassette_cmf_before_save_field` / `cassette_cmf_before_save_field_{field_name}` — filter a field's value immediately before it's saved; return `null` from the broad filter to skip saving.
+- `cassette_cmf_enqueue_common_assets` — fires after the plugin's own common CSS/JS are enqueued, for addons that need to enqueue their own assets in the same pass.
 
 ---
 
