@@ -110,6 +110,75 @@ class Test_Field_Types extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test TextField renders prepend and append adornments.
+	 *
+	 * Regression test for #52.
+	 */
+	public function test_text_field_prepend_append(): void {
+		$field = Field_Factory::create(
+			[
+				'name'    => 'test_price',
+				'type'    => 'text',
+				'label'   => 'Price',
+				'prepend' => '$',
+				'append'  => 'USD',
+			]
+		);
+
+		$html = $field->render( '10' );
+
+		$this->assertStringContainsString( '<span class="cassette-cmf-input-wrapper has-adornment">', $html );
+		$this->assertStringContainsString( '<span class="cassette-cmf-field-prepend">$</span>', $html );
+		$this->assertStringContainsString( '<span class="cassette-cmf-field-append">USD</span>', $html );
+		// Prepend must render before the input, append after.
+		$this->assertMatchesRegularExpression(
+			'#cassette-cmf-field-prepend">\$</span><input[^>]*><span class="cassette-cmf-field-append">USD</span>#',
+			$html
+		);
+	}
+
+	/**
+	 * Test TextField without prepend/append renders a bare wrapper with
+	 * no has-adornment modifier, so unaffected fields keep their existing
+	 * layout unchanged.
+	 */
+	public function test_text_field_no_adornment_omits_modifier_class(): void {
+		$field = Field_Factory::create(
+			[
+				'name'  => 'test_plain',
+				'type'  => 'text',
+				'label' => 'Plain',
+			]
+		);
+
+		$html = $field->render( 'value' );
+
+		$this->assertStringContainsString( '<span class="cassette-cmf-input-wrapper">', $html );
+		$this->assertStringNotContainsString( 'has-adornment', $html );
+		$this->assertStringNotContainsString( 'cassette-cmf-field-prepend', $html );
+		$this->assertStringNotContainsString( 'cassette-cmf-field-append', $html );
+	}
+
+	/**
+	 * Test prepend/append strip unsafe tags but allow safe HTML.
+	 */
+	public function test_text_field_prepend_append_sanitizes_html(): void {
+		$field = Field_Factory::create(
+			[
+				'name'    => 'test_html',
+				'type'    => 'text',
+				'label'   => 'Test',
+				'prepend' => '<strong>$</strong><script>alert(1)</script>',
+			]
+		);
+
+		$html = $field->render( '' );
+
+		$this->assertStringContainsString( '<strong>$</strong>', $html );
+		$this->assertStringNotContainsString( '<script>', $html );
+	}
+
+	/**
 	 * Test TextareaField renders correctly.
 	 */
 	public function test_textarea_field_render(): void {
@@ -276,6 +345,28 @@ class Test_Field_Types extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test NumberField renders an append adornment (e.g. a unit).
+	 *
+	 * Regression test for #52.
+	 */
+	public function test_number_field_append(): void {
+		$field = Field_Factory::create(
+			[
+				'name'   => 'test_width',
+				'type'   => 'number',
+				'label'  => 'Width',
+				'append' => 'px',
+			]
+		);
+
+		$html = $field->render( 100 );
+
+		$this->assertStringContainsString( '<span class="cassette-cmf-input-wrapper has-adornment">', $html );
+		$this->assertStringContainsString( '<span class="cassette-cmf-field-append">px</span>', $html );
+		$this->assertStringNotContainsString( 'cassette-cmf-field-prepend', $html );
+	}
+
+	/**
 	 * Test EmailField renders correctly.
 	 */
 	public function test_email_field_render(): void {
@@ -291,6 +382,12 @@ class Test_Field_Types extends WP_UnitTestCase {
 
 		$this->assertStringContainsString( 'type="email"', $html );
 		$this->assertStringContainsString( 'value="test@example.com"', $html );
+
+		// Regression test for #55: input is wrapped in a span hook.
+		$this->assertMatchesRegularExpression(
+			'#<span class="cassette-cmf-input-wrapper"><input[^>]*type="email"[^>]*/></span>#',
+			$html
+		);
 	}
 
 	/**
@@ -328,6 +425,12 @@ class Test_Field_Types extends WP_UnitTestCase {
 
 		$this->assertStringContainsString( 'type="url"', $html );
 		$this->assertStringContainsString( 'value="https://example.com"', $html );
+
+		// Regression test for #55: input is wrapped in a span hook.
+		$this->assertMatchesRegularExpression(
+			'#<span class="cassette-cmf-input-wrapper"><input[^>]*type="url"[^>]*/></span>#',
+			$html
+		);
 	}
 
 	/**
@@ -440,5 +543,57 @@ class Test_Field_Types extends WP_UnitTestCase {
 		$this->assertSame( '#ff0000', $field->sanitize( 'ff0000' ) );
 		// Invalid color returns default
 		$this->assertSame( '#000000', $field->sanitize( 'invalid' ) );
+	}
+
+	/**
+	 * Test single-input field types report they use a label wrapper.
+	 *
+	 * Regression test for #50: these field types render exactly one
+	 * control with an id matching get_field_id(), so a settings-page
+	 * title can correctly be wrapped in <label for="...">.
+	 */
+	public function test_single_input_field_types_use_label_wrapper(): void {
+		$types = [ 'text', 'textarea', 'select', 'number', 'email', 'url', 'date', 'password', 'color' ];
+
+		foreach ( $types as $type ) {
+			$field = Field_Factory::create(
+				[
+					'name'  => 'test_' . $type,
+					'type'  => $type,
+					'label' => 'Test',
+				]
+			);
+
+			$this->assertTrue(
+				$field->uses_label_wrapper(),
+				"Expected '{$type}' field to use a label wrapper."
+			);
+			$this->assertSame( 'cassette-cmf-field-test_' . $type, $field->get_field_id() );
+		}
+	}
+
+	/**
+	 * Test grouped-control field types do not use a label wrapper.
+	 *
+	 * Regression test for #50: checkbox and radio fields render a group
+	 * of controls (or, for a single checkbox, their own inline <label>),
+	 * so there is no single control for a settings-page title's
+	 * label_for to point at.
+	 */
+	public function test_grouped_field_types_do_not_use_label_wrapper(): void {
+		foreach ( [ 'checkbox', 'radio' ] as $type ) {
+			$field = Field_Factory::create(
+				[
+					'name'  => 'test_' . $type,
+					'type'  => $type,
+					'label' => 'Test',
+				]
+			);
+
+			$this->assertFalse(
+				$field->uses_label_wrapper(),
+				"Expected '{$type}' field to NOT use a label wrapper."
+			);
+		}
 	}
 }

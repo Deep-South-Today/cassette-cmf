@@ -24,6 +24,11 @@ use Pedalcms\CassetteCmf\Field\Field_Factory;
  * - max_rows: Maximum number of rows (default: unlimited)
  * - button_label: Label for the "Add Row" button (default: 'Add Row')
  * - row_label: Label template for each row (supports {{index}} placeholder)
+ * - row_label_field: Name of a sub-field whose value is used as the row's
+ *   collapsed label instead of row_label, once that sub-field is non-empty.
+ *   Must reference a sub-field that renders a single text-like control
+ *   (text, textarea, number, email, url, date, select); checkbox/radio/
+ *   group/container sub-fields are not supported as a label source.
  * - collapsible: Whether rows can be collapsed (default: true)
  * - collapsed: Whether rows start collapsed (default: false)
  * - sortable: Whether rows can be reordered (default: true)
@@ -36,6 +41,14 @@ use Pedalcms\CassetteCmf\Field\Field_Factory;
  * ]
  */
 class Repeater_Field extends Abstract_Field {
+
+	/**
+	 * Container field with no single focusable control of its own — a
+	 * settings-page title has nothing to be wrapped in a label for.
+	 *
+	 * @var bool
+	 */
+	protected bool $uses_label_wrapper = false;
 
 	/**
 	 * Constructor.
@@ -59,14 +72,15 @@ class Repeater_Field extends Abstract_Field {
 		return array_merge(
 			$defaults,
 			[
-				'fields'       => [],
-				'min_rows'     => 0,
-				'max_rows'     => 0, // 0 = unlimited
-				'button_label' => 'Add Row',
-				'row_label'    => 'Row {{index}}',
-				'collapsible'  => true,
-				'collapsed'    => false,
-				'sortable'     => true,
+				'fields'          => [],
+				'min_rows'        => 0,
+				'max_rows'        => 0, // 0 = unlimited
+				'button_label'    => 'Add Row',
+				'row_label'       => 'Row {{index}}',
+				'row_label_field' => '',
+				'collapsible'     => true,
+				'collapsed'       => false,
+				'sortable'        => true,
 			]
 		);
 	}
@@ -127,16 +141,17 @@ class Repeater_Field extends Abstract_Field {
 	 * @return string HTML output.
 	 */
 	public function render( $value = null ): string {
-		$field_name   = $this->get_name();
-		$field_id     = $this->get_field_id();
-		$sub_fields   = $this->get_sub_fields();
-		$min_rows     = (int) ( $this->config['min_rows'] ?? 0 );
-		$max_rows     = (int) ( $this->config['max_rows'] ?? 0 );
-		$button_label = $this->config['button_label'] ?? 'Add Row';
-		$row_label    = $this->config['row_label'] ?? 'Row {{index}}';
-		$collapsible  = $this->config['collapsible'] ?? true;
-		$collapsed    = $this->config['collapsed'] ?? false;
-		$sortable     = $this->config['sortable'] ?? true;
+		$field_name      = $this->get_name();
+		$field_id        = $this->get_field_id();
+		$sub_fields      = $this->get_sub_fields();
+		$min_rows        = (int) ( $this->config['min_rows'] ?? 0 );
+		$max_rows        = (int) ( $this->config['max_rows'] ?? 0 );
+		$button_label    = $this->config['button_label'] ?? 'Add Row';
+		$row_label       = $this->config['row_label'] ?? 'Row {{index}}';
+		$row_label_field = (string) ( $this->config['row_label_field'] ?? '' );
+		$collapsible     = $this->config['collapsible'] ?? true;
+		$collapsed       = $this->config['collapsed'] ?? false;
+		$sortable        = $this->config['sortable'] ?? true;
 
 		// Ensure value is an array
 		$rows = is_array( $value ) ? $value : [];
@@ -158,17 +173,26 @@ class Repeater_Field extends Abstract_Field {
 		$output .= 'data-min-rows="' . $this->esc_attr( (string) $min_rows ) . '" ';
 		$output .= 'data-max-rows="' . $this->esc_attr( (string) $max_rows ) . '" ';
 		$output .= 'data-sortable="' . ( $sortable ? 'true' : 'false' ) . '" ';
-		$output .= 'data-collapsible="' . ( $collapsible ? 'true' : 'false' ) . '">';
+		$output .= 'data-collapsible="' . ( $collapsible ? 'true' : 'false' ) . '" ';
+		$output .= 'data-row-label-field="' . $this->esc_attr( $row_label_field ) . '">';
 
 		// Rows container
 		$output .= '<div class="cassette-cmf-repeater-rows">';
 
 		// Render existing rows
+		$last_position = count( $rows ) - 1;
+		$position      = 0;
 		foreach ( $rows as $row_index => $row_data ) {
-			$output .= $this->render_row( $row_index, $row_data, $sub_fields, $field_name, $row_label, $collapsible, $collapsed );
+			$is_first = ( 0 === $position );
+			$is_last  = ( $position === $last_position );
+			$output  .= $this->render_row( $row_index, $row_data, $sub_fields, $field_name, $row_label, $collapsible, $collapsed, $row_label_field, $is_first, $is_last );
+			++$position;
 		}
 
 		$output .= '</div>'; // .cassette-cmf-repeater-rows
+
+		// Polite live region for keyboard-reorder announcements.
+		$output .= '<div class="cassette-cmf-repeater-announcer screen-reader-text" aria-live="polite" aria-atomic="true"></div>';
 
 		// Add row button
 		$can_add = ( 0 === $max_rows || count( $rows ) < $max_rows );
@@ -181,7 +205,7 @@ class Repeater_Field extends Abstract_Field {
 
 		// Hidden template for new rows (used by JavaScript)
 		$output .= '<script type="text/template" class="cassette-cmf-repeater-template">';
-		$output .= $this->render_row( '{{INDEX}}', [], $sub_fields, $field_name, $row_label, $collapsible, false );
+		$output .= $this->render_row( '{{INDEX}}', [], $sub_fields, $field_name, $row_label, $collapsible, false, $row_label_field );
 		$output .= '</script>';
 
 		$output .= '</div>'; // .cassette-cmf-repeater
@@ -196,19 +220,48 @@ class Repeater_Field extends Abstract_Field {
 	}
 
 	/**
+	 * Resolve a row's label
+	 *
+	 * Prefers the current value of the configured row_label_field
+	 * sub-field, when set and non-empty, over the index-based row_label
+	 * template.
+	 *
+	 * @param int|string            $row_index       Row index.
+	 * @param array<string, mixed>  $row_data        Row data.
+	 * @param string                $row_label       Row label template.
+	 * @param string                $row_label_field Sub-field name to use as the row label, if non-empty.
+	 * @return string
+	 */
+	protected function get_row_label( $row_index, array $row_data, string $row_label, string $row_label_field ): string {
+		if ( '' !== $row_label_field && isset( $row_data[ $row_label_field ] ) ) {
+			$field_value = $row_data[ $row_label_field ];
+
+			if ( is_scalar( $field_value ) && '' !== (string) $field_value ) {
+				return (string) $field_value;
+			}
+		}
+
+		return str_replace( '{{index}}', (string) ( is_int( $row_index ) ? $row_index + 1 : $row_index ), $row_label );
+	}
+
+	/**
 	 * Render a single repeater row
 	 *
-	 * @param int|string                  $row_index   Row index.
-	 * @param array<string, mixed>        $row_data    Row data.
-	 * @param array<array<string, mixed>> $sub_fields  Sub-field configurations.
-	 * @param string                      $field_name  Parent field name.
-	 * @param string                      $row_label   Row label template.
-	 * @param bool                        $collapsible Whether row is collapsible.
-	 * @param bool                        $collapsed   Whether row starts collapsed.
+	 * @param int|string                  $row_index       Row index.
+	 * @param array<string, mixed>        $row_data        Row data.
+	 * @param array<array<string, mixed>> $sub_fields      Sub-field configurations.
+	 * @param string                      $field_name      Parent field name.
+	 * @param string                      $row_label       Row label template.
+	 * @param bool                        $collapsible     Whether row is collapsible.
+	 * @param bool                        $collapsed       Whether row starts collapsed.
+	 * @param string                      $row_label_field Sub-field name to use as the row label, if non-empty.
+	 * @param bool                        $is_first        Whether this is the first row (disables "move up").
+	 * @param bool                        $is_last         Whether this is the last row (disables "move down").
 	 * @return string HTML output.
 	 */
-	protected function render_row( $row_index, array $row_data, array $sub_fields, string $field_name, string $row_label, bool $collapsible, bool $collapsed ): string {
-		$label       = str_replace( '{{index}}', (string) ( is_int( $row_index ) ? $row_index + 1 : $row_index ), $row_label );
+	protected function render_row( $row_index, array $row_data, array $sub_fields, string $field_name, string $row_label, bool $collapsible, bool $collapsed, string $row_label_field = '', bool $is_first = false, bool $is_last = true ): string {
+		$label = $this->get_row_label( $row_index, $row_data, $row_label, $row_label_field );
+
 		$row_classes = 'cassette-cmf-repeater-row';
 
 		if ( $collapsed && $collapsible ) {
@@ -228,6 +281,15 @@ class Repeater_Field extends Abstract_Field {
 
 		// Row actions
 		$output .= '<div class="cassette-cmf-repeater-row-actions">';
+
+		// Keyboard-accessible reordering, alongside drag-and-drop.
+		$output .= '<button type="button" class="cassette-cmf-repeater-move-up" aria-label="' . $this->esc_attr( $this->translate( 'Move row up' ) ) . '"' . ( $is_first ? ' disabled' : '' ) . '>';
+		$output .= '<span class="dashicons dashicons-arrow-up-alt2" aria-hidden="true"></span>';
+		$output .= '</button>';
+
+		$output .= '<button type="button" class="cassette-cmf-repeater-move-down" aria-label="' . $this->esc_attr( $this->translate( 'Move row down' ) ) . '"' . ( $is_last ? ' disabled' : '' ) . '>';
+		$output .= '<span class="dashicons dashicons-arrow-down-alt2" aria-hidden="true"></span>';
+		$output .= '</button>';
 
 		if ( $collapsible ) {
 			$output .= '<button type="button" class="cassette-cmf-repeater-toggle" title="Toggle">';
@@ -469,14 +531,15 @@ class Repeater_Field extends Abstract_Field {
 		return array_merge(
 			$base_schema,
 			[
-				'fields'       => $this->get_sub_fields(),
-				'min_rows'     => $this->config['min_rows'] ?? 0,
-				'max_rows'     => $this->config['max_rows'] ?? 0,
-				'button_label' => $this->config['button_label'] ?? 'Add Row',
-				'row_label'    => $this->config['row_label'] ?? 'Row {{index}}',
-				'collapsible'  => $this->config['collapsible'] ?? true,
-				'collapsed'    => $this->config['collapsed'] ?? false,
-				'sortable'     => $this->config['sortable'] ?? true,
+				'fields'          => $this->get_sub_fields(),
+				'min_rows'        => $this->config['min_rows'] ?? 0,
+				'max_rows'        => $this->config['max_rows'] ?? 0,
+				'button_label'    => $this->config['button_label'] ?? 'Add Row',
+				'row_label'       => $this->config['row_label'] ?? 'Row {{index}}',
+				'row_label_field' => $this->config['row_label_field'] ?? '',
+				'collapsible'     => $this->config['collapsible'] ?? true,
+				'collapsed'       => $this->config['collapsed'] ?? false,
+				'sortable'        => $this->config['sortable'] ?? true,
 			]
 		);
 	}

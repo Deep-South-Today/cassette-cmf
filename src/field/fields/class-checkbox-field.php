@@ -19,6 +19,15 @@ use Pedalcms\CassetteCmf\Field\Abstract_Field;
 class Checkbox_Field extends Abstract_Field {
 
 	/**
+	 * Checkbox fields render a group of controls (single checkbox is its
+	 * own inline <label>, multiple checkboxes are a <fieldset>), so there
+	 * is no single control for a settings-page title to be wrapped for.
+	 *
+	 * @var bool
+	 */
+	protected bool $uses_label_wrapper = false;
+
+	/**
 	 * Get field type defaults
 	 *
 	 * @return array<string, mixed>

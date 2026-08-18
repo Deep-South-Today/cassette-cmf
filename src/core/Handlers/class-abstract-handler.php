@@ -87,7 +87,11 @@ abstract class Abstract_Handler implements Handler_Interface {
 	 * @return string Version string.
 	 */
 	protected function get_version(): string {
-		$composer_path = dirname( dirname( __DIR__ ) ) . '/composer.json';
+		// __DIR__ is src/core/Handlers; the repository root (where
+		// composer.json lives) is three levels up, not two — dirname()
+		// twice only reaches src/, so composer.json was never actually
+		// found and this always fell through to the timestamp below.
+		$composer_path = dirname( __DIR__, 3 ) . '/composer.json';
 
 		if ( file_exists( $composer_path ) ) {
 			// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents

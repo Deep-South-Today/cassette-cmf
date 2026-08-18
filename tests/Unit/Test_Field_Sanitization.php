@@ -81,7 +81,11 @@ class Test_Field_Sanitization extends WP_UnitTestCase {
 	// =========================================================================
 
 	/**
-	 * Test TextareaField sanitizes input.
+	 * Test TextareaField preserves newlines.
+	 *
+	 * Regression test for #104: Abstract_Field's default sanitize() uses
+	 * sanitize_text_field(), which collapses newlines into spaces. Textarea
+	 * content must survive a round trip with its line breaks intact.
 	 */
 	public function test_textarea_field_preserves_newlines(): void {
 		$field = Field_Factory::create(
@@ -94,13 +98,11 @@ class Test_Field_Sanitization extends WP_UnitTestCase {
 		$input  = "Line 1\nLine 2\nLine 3";
 		$result = $field->sanitize( $input );
 
-		// WordPress sanitize_textarea_field preserves newlines in actual WP context
-		// In test environment, we just verify it returns a string
-		$this->assertIsString( $result );
+		$this->assertSame( $input, $result );
 	}
 
 	/**
-	 * Test TextareaField sanitizes HTML.
+	 * Test TextareaField strips tags by default.
 	 */
 	public function test_textarea_field_sanitizes_html(): void {
 		$field = Field_Factory::create(
@@ -113,6 +115,41 @@ class Test_Field_Sanitization extends WP_UnitTestCase {
 		$result = $field->sanitize( '<script>bad</script>Good content' );
 
 		$this->assertStringNotContainsString( '<script>', $result );
+	}
+
+	/**
+	 * Test TextareaField returns an empty string for non-string input.
+	 */
+	public function test_textarea_field_handles_non_string(): void {
+		$field = Field_Factory::create(
+			[
+				'name' => 'test',
+				'type' => 'textarea',
+			]
+		);
+
+		$this->assertSame( '', $field->sanitize( null ) );
+	}
+
+	/**
+	 * Test TextareaField allows safe HTML and preserves newlines when
+	 * allow_html is enabled, while still stripping unsafe tags.
+	 */
+	public function test_textarea_field_allow_html_permits_safe_markup(): void {
+		$field = Field_Factory::create(
+			[
+				'name'       => 'test',
+				'type'       => 'textarea',
+				'allow_html' => true,
+			]
+		);
+
+		$input  = "<strong>Bold</strong> line one\n<script>alert(1)</script>line two";
+		$result = $field->sanitize( $input );
+
+		$this->assertStringContainsString( '<strong>Bold</strong>', $result );
+		$this->assertStringNotContainsString( '<script>', $result );
+		$this->assertStringContainsString( "\n", $result );
 	}
 
 	// =========================================================================

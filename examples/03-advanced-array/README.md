@@ -26,6 +26,8 @@ A complete e-commerce product post type with:
 
 **Metabox: Variations (with Repeater)**
 - Repeatable variation fields: name, SKU, price, stock
+- `row_label_field` set to `variant_name`, so each collapsed row shows its variation name (e.g. "Small - Red") instead of "Row 1", "Row 2" — and keeps showing the right name after reordering
+- Rows can also be reordered with the keyboard via the Move up / Move down buttons next to the drag handle, not just by dragging
 
 ### 2. New Settings Page: Store Settings
 A comprehensive settings page demonstrating proper container field usage:
@@ -168,13 +170,14 @@ $brand_color = CassetteCmf::get_field( 'site_logo_color', 'general', 'settings',
 ### Repeater Container
 ```php
 [
-    'name'         => 'my_repeater',
-    'type'         => 'repeater',
-    'label'        => 'Repeatable Items',
-    'button_label' => 'Add Item',
-    'min'          => 1,
-    'max'          => 10,
-    'fields'       => [ /* fields to repeat */ ],
+    'name'            => 'my_repeater',
+    'type'            => 'repeater',
+    'label'           => 'Repeatable Items',
+    'button_label'    => 'Add Item',
+    'min_rows'        => 1,
+    'max_rows'        => 10,
+    'row_label_field' => 'title', // Use the "title" sub-field's value as each row's collapsed label
+    'fields'          => [ /* fields to repeat */ ],
 ]
 ```
 

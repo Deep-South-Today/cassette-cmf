@@ -44,6 +44,21 @@ jobs:
             exit 1
           fi
 
+      - name: Sync version from tag
+        shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          bash bin/set-version.sh "${VERSION}"
+          if ! git diff --quiet; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git commit -am "chore: sync version to ${VERSION}"
+            echo "Committed version sync to ${VERSION}; release assets will be built from the corrected tree."
+          else
+            echo "Version already matches ${VERSION}; nothing to sync."
+          fi
+
       - name: Install dependencies (production only)
         run: composer install --prefer-dist --no-dev --no-progress --optimize-autoloader
 

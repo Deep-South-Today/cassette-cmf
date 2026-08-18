@@ -257,6 +257,38 @@ class Test_Settings_Page extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test submenu position is honored on registration.
+	 *
+	 * Regression test for #83: add_submenu_page() accepts a seventh
+	 * position argument (WP 5.3+), but Settings_Page::register() never
+	 * passed it through, so submenu pages always appended to the end of
+	 * their parent menu regardless of set_position().
+	 */
+	public function test_settings_page_submenu_honors_position(): void {
+		global $submenu;
+
+		// Prime the Settings parent menu with an existing submenu item so
+		// there is something to insert ahead of.
+		$submenu['options-general.php'] = [
+			[ 'Existing', 'manage_options', 'existing-page', 'Existing' ],
+		];
+
+		$page = new Settings_Page( 'positioned_sub_settings' );
+		$page->set_page_title( 'Positioned Submenu' );
+		$page->set_menu_title( 'Positioned' );
+		$page->set_parent( 'options-general.php' );
+		$page->set_position( 0 );
+
+		$this->assertTrue( $page->register() );
+
+		$this->assertArrayHasKey( 'options-general.php', $submenu );
+		$menu_slugs = wp_list_pluck( $submenu['options-general.php'], 2 );
+		$this->assertSame( 'positioned_sub_settings', $menu_slugs[0], 'Position 0 should place the submenu item first.' );
+
+		unset( $submenu['options-general.php'] );
+	}
+
+	/**
 	 * Test Settings_Page is not submenu by default.
 	 */
 	public function test_settings_page_not_submenu_by_default(): void {
@@ -351,5 +383,56 @@ class Test_Settings_Page extends WP_UnitTestCase {
 		$this->assertTrue( $handler->has_page( 'page_one' ) );
 		$this->assertTrue( $handler->has_page( 'page_two' ) );
 		$this->assertTrue( $handler->has_page( 'page_three' ) );
+	}
+
+	/**
+	 * Test add_settings_field receives label_for for single-input fields
+	 * but not for grouped-control fields.
+	 *
+	 * Regression test for #50: settings field titles were never wrapped
+	 * in a <label for="...">, so clicking a field's title did not focus
+	 * its input. Registers a text and a checkbox field on the same page
+	 * and inspects the global $wp_settings_fields WordPress populates,
+	 * since that is exactly what do_settings_fields() reads to decide
+	 * whether to wrap the title in a label.
+	 */
+	public function test_settings_field_label_for_wiring(): void {
+		global $wp_settings_fields;
+
+		$manager = Manager::init();
+		$manager->register_from_array(
+			[
+				'settings_pages' => [
+					[
+						'id'         => 'label_for_page',
+						'page_title' => 'Label For Page',
+						'menu_title' => 'Label For',
+						'capability' => 'manage_options',
+						'fields'     => [
+							[
+								'name'  => 'text_field',
+								'type'  => 'text',
+								'label' => 'Text Field',
+							],
+							[
+								'name'  => 'checkbox_field',
+								'type'  => 'checkbox',
+								'label' => 'Checkbox Field',
+							],
+						],
+					],
+				],
+			]
+		);
+
+		$handler = $manager->get_new_settings_handler();
+		$handler->register_settings();
+
+		$section_id    = 'label_for_page_section';
+		$text_args     = $wp_settings_fields['label_for_page'][ $section_id ]['text_field']['args'];
+		$checkbox_args = $wp_settings_fields['label_for_page'][ $section_id ]['checkbox_field']['args'];
+
+		$this->assertSame( 'cassette-cmf-field-text_field', $text_args['label_for'] );
+		$this->assertArrayNotHasKey( 'label_for', $checkbox_args );
 	}
 }

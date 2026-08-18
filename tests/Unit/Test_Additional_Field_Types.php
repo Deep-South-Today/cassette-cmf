@@ -172,6 +172,97 @@ class Test_Additional_Field_Types extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test RepeaterField row_label_field uses the sub-field's value as
+	 * the row label instead of the index-based row_label template.
+	 *
+	 * Regression test for #71.
+	 */
+	public function test_repeater_row_label_field(): void {
+		$field = Field_Factory::create(
+			[
+				'name'            => 'test_repeater',
+				'type'            => 'repeater',
+				'row_label_field' => 'name',
+				'fields'          => [
+					[
+						'name' => 'name',
+						'type' => 'text',
+					],
+				],
+			]
+		);
+
+		$data = [
+			[ 'name' => 'Alice' ],
+			[ 'name' => 'Bob' ],
+		];
+
+		$html = $field->render( $data );
+
+		$this->assertStringContainsString( '<span class="cassette-cmf-repeater-row-label">Alice</span>', $html );
+		$this->assertStringContainsString( '<span class="cassette-cmf-repeater-row-label">Bob</span>', $html );
+		$this->assertStringNotContainsString( 'Row 1', $html );
+		$this->assertStringNotContainsString( 'Row 2', $html );
+	}
+
+	/**
+	 * Test RepeaterField falls back to the row_label template when the
+	 * configured row_label_field sub-field is empty for a row.
+	 *
+	 * Regression test for #71.
+	 */
+	public function test_repeater_row_label_field_falls_back_when_empty(): void {
+		$field = Field_Factory::create(
+			[
+				'name'            => 'test_repeater',
+				'type'            => 'repeater',
+				'row_label_field' => 'name',
+				'fields'          => [
+					[
+						'name' => 'name',
+						'type' => 'text',
+					],
+				],
+			]
+		);
+
+		$data = [
+			[ 'name' => '' ],
+		];
+
+		$html = $field->render( $data );
+
+		$this->assertStringContainsString( '<span class="cassette-cmf-repeater-row-label">Row 1</span>', $html );
+	}
+
+	/**
+	 * Test RepeaterField without row_label_field keeps existing
+	 * index-based labeling (default behavior unchanged).
+	 */
+	public function test_repeater_without_row_label_field_uses_index(): void {
+		$field = Field_Factory::create(
+			[
+				'name'   => 'test_repeater',
+				'type'   => 'repeater',
+				'fields' => [
+					[
+						'name' => 'name',
+						'type' => 'text',
+					],
+				],
+			]
+		);
+
+		$data = [
+			[ 'name' => 'Alice' ],
+		];
+
+		$html = $field->render( $data );
+
+		$this->assertStringContainsString( '<span class="cassette-cmf-repeater-row-label">Row 1</span>', $html );
+	}
+
+	/**
 	 * Test RepeaterField get_sub_fields returns config.
 	 */
 	public function test_repeater_get_sub_fields(): void {
@@ -313,6 +404,82 @@ class Test_Additional_Field_Types extends WP_UnitTestCase {
 		$html = $field->render( [] );
 
 		$this->assertStringContainsString( 'data-sortable="true"', $html );
+	}
+
+	/**
+	 * Test RepeaterField renders keyboard-accessible move up/down buttons,
+	 * with the first row's "move up" and the last row's "move down"
+	 * disabled.
+	 *
+	 * Regression test for #72.
+	 */
+	public function test_repeater_move_buttons_disabled_at_ends(): void {
+		$field = Field_Factory::create(
+			[
+				'name'   => 'test_repeater',
+				'type'   => 'repeater',
+				'fields' => [
+					[
+						'name' => 'text',
+						'type' => 'text',
+					],
+				],
+			]
+		);
+
+		$html = $field->render(
+			[
+				[ 'text' => 'Row A' ],
+				[ 'text' => 'Row B' ],
+				[ 'text' => 'Row C' ],
+			]
+		);
+
+		// Three move-up and three move-down buttons for the rendered rows,
+		// plus one more of each in the hidden template row used by JS.
+		$this->assertSame( 4, substr_count( $html, 'cassette-cmf-repeater-move-up' ) );
+		$this->assertSame( 4, substr_count( $html, 'cassette-cmf-repeater-move-down' ) );
+
+		// aria-labels present for screen readers.
+		$this->assertStringContainsString( 'aria-label="Move row up"', $html );
+		$this->assertStringContainsString( 'aria-label="Move row down"', $html );
+
+		// First row's move-up and last row's move-down are disabled; find
+		// each row's block and check its own buttons individually.
+		$rows = explode( 'data-row-index="0"', $html )[1];
+		$rows = explode( 'data-row-index="1"', $rows )[0];
+		$this->assertMatchesRegularExpression( '/cassette-cmf-repeater-move-up"[^>]*disabled/', $rows );
+		$this->assertDoesNotMatchRegularExpression( '/cassette-cmf-repeater-move-down"[^>]*disabled/', $rows );
+
+		$last_row = explode( 'data-row-index="2"', $html )[1];
+		$this->assertDoesNotMatchRegularExpression( '/cassette-cmf-repeater-move-up"[^>]*disabled/', $last_row );
+		$this->assertMatchesRegularExpression( '/cassette-cmf-repeater-move-down"[^>]*disabled/', $last_row );
+	}
+
+	/**
+	 * Test RepeaterField renders a polite live region for keyboard-move
+	 * announcements.
+	 *
+	 * Regression test for #72.
+	 */
+	public function test_repeater_renders_live_region(): void {
+		$field = Field_Factory::create(
+			[
+				'name'   => 'test_repeater',
+				'type'   => 'repeater',
+				'fields' => [
+					[
+						'name' => 'text',
+						'type' => 'text',
+					],
+				],
+			]
+		);
+
+		$html = $field->render( [] );
+
+		$this->assertStringContainsString( 'cassette-cmf-repeater-announcer', $html );
+		$this->assertStringContainsString( 'aria-live="polite"', $html );
 	}
 
 	/**
@@ -1016,5 +1183,23 @@ class Test_Additional_Field_Types extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'cassette-cmf-upload-value', $html );
 		$this->assertStringContainsString( 'cassette-cmf-upload-preview', $html );
 		$this->assertStringContainsString( 'cassette-cmf-upload-container', $html );
+	}
+
+	/**
+	 * Test Custom_HTML_Field does not use a label wrapper.
+	 *
+	 * Regression test for #50: this field type has no input control at
+	 * all, so a settings-page title has nothing for label_for to point at.
+	 */
+	public function test_custom_html_field_does_not_use_label_wrapper(): void {
+		$field = Field_Factory::create(
+			[
+				'name'    => 'test_custom_html',
+				'type'    => 'custom_html',
+				'content' => '<p>Some content</p>',
+			]
+		);
+
+		$this->assertFalse( $field->uses_label_wrapper() );
 	}
 }

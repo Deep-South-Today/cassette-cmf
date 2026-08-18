@@ -436,8 +436,8 @@ class New_Taxonomy_Handler extends Abstract_Handler {
 
 		// Check if we have fields for this taxonomy and it's one we registered
 		if ( isset( $this->taxonomies[ $taxonomy ] ) && $this->has_fields( $taxonomy ) ) {
-			$this->enqueue_field_assets( $taxonomy );
 			$this->enqueue_common_assets();
+			$this->enqueue_field_assets( $taxonomy );
 		}
 	}
 

@@ -262,43 +262,85 @@
 		}
 
 		init() {
+			const self = this;
+
 			$(this.selector).each(function () {
-				const $tabs = $(this);
-				const $buttons = $tabs.find('.cassette-cmf-tab-button');
-				const $panels = $tabs.find('.cassette-cmf-tab-panel');
+				const $tabsField = $(this);
+				const $tablist = $tabsField.find('.cassette-cmf-tabs-nav');
+				const $buttons = $tabsField.find('.cassette-cmf-tab-button');
+				const $panels = $tabsField.find('.cassette-cmf-tab-panel');
 
 				// Skip if already initialized
-				if ($tabs.data('tabs-initialized')) {
+				if ($tabsField.data('tabs-initialized')) {
 					return;
 				}
-				$tabs.data('tabs-initialized', true);
+				$tabsField.data('tabs-initialized', true);
 
 				$buttons.on('click', function (e) {
 					e.preventDefault();
-					const targetId = $(this).data('tab');
-					const $targetPanel = $tabs.find('.cassette-cmf-tab-panel[data-tab="' + targetId + '"]');
+					self.activateTab($tabsField, $buttons, $panels, $(this));
+				});
 
-					// Update buttons
-					$buttons.removeClass('active');
-					$(this).addClass('active');
+				// Arrow keys move focus and activate (automatic-activation
+				// tabs pattern); Home/End jump to the first/last tab.
+				$tablist.on('keydown', '.cassette-cmf-tab-button', function (e) {
+					const currentIndex = $buttons.index(this);
+					let targetIndex = null;
 
-					// Update panels - use data-tab attribute selector
-					$panels.removeClass('active').hide();
-					$targetPanel.addClass('active').show();
-					$(document).trigger('cassette-cmf-tab-activated', [$targetPanel]);
+					switch (e.key) {
+						case 'ArrowRight':
+						case 'ArrowDown':
+							targetIndex = (currentIndex + 1) % $buttons.length;
+							break;
+						case 'ArrowLeft':
+						case 'ArrowUp':
+							targetIndex = (currentIndex - 1 + $buttons.length) % $buttons.length;
+							break;
+						case 'Home':
+							targetIndex = 0;
+							break;
+						case 'End':
+							targetIndex = $buttons.length - 1;
+							break;
+						default:
+							return;
+					}
+
+					e.preventDefault();
+					const $target = $buttons.eq(targetIndex);
+					self.activateTab($tabsField, $buttons, $panels, $target);
+					$target.trigger('focus');
 				});
 
 				// Activate first tab if none active
 				if ($buttons.filter('.active').length === 0 && $buttons.length > 0) {
-					$buttons.first().trigger('click');
+					self.activateTab($tabsField, $buttons, $panels, $buttons.first());
 				} else {
-					// Show active panel
+					// Show active panel and sync ARIA state to match.
 					$panels.hide();
 					$panels.filter('.active').show().each(function () {
 						$(document).trigger('cassette-cmf-tab-activated', [$(this)]);
 					});
 				}
 			});
+		}
+
+		/**
+		 * Activate a tab: update the active class, aria-selected, and the
+		 * roving tabindex on every button, show the matching panel, and
+		 * fire cassette-cmf-tab-activated (which the WYSIWYG field listens
+		 * for to lazily initialize editors inside non-default tabs).
+		 */
+		activateTab($tabsField, $buttons, $panels, $button) {
+			const targetId = $button.data('tab');
+			const $targetPanel = $tabsField.find('.cassette-cmf-tab-panel[data-tab="' + targetId + '"]');
+
+			$buttons.removeClass('active').attr({ 'aria-selected': 'false', tabindex: '-1' });
+			$button.addClass('active').attr({ 'aria-selected': 'true', tabindex: '0' });
+
+			$panels.removeClass('active').hide();
+			$targetPanel.addClass('active').show();
+			$(document).trigger('cassette-cmf-tab-activated', [$targetPanel]);
 		}
 	}
 
@@ -476,6 +518,20 @@
 				}
 				$repeater.data('repeater-initialized', true);
 
+				// Live-update a row's label from its row_label_field sub-field
+				const rowLabelField = $repeater.data('row-label-field') || '';
+
+				if (rowLabelField) {
+					const debouncedLabelUpdate = self.debounce(function ($row) {
+						const index = $rows.find('.cassette-cmf-repeater-row').index($row);
+						self.updateRowLabelText($row, rowLabelField, index);
+					}, 150);
+
+					$repeater.on('input change', '.cassette-cmf-repeater-row-content :input', function () {
+						debouncedLabelUpdate($(this).closest('.cassette-cmf-repeater-row'));
+					});
+				}
+
 				// Add new row
 				$addButton.on('click', function (e) {
 					e.preventDefault();
@@ -501,6 +557,7 @@
 
 					self.updateRowNumbers($repeater);
 					self.checkMinMax($repeater);
+					self.updateMoveButtonStates($repeater);
 
 					// Trigger event for external scripts
 					$(document).trigger('cassette-cmf-fields-added');
@@ -523,6 +580,7 @@
 						$(this).remove();
 						self.updateRowNumbers($repeater);
 						self.checkMinMax($repeater);
+						self.updateMoveButtonStates($repeater);
 					});
 				});
 
@@ -545,6 +603,45 @@
 					}
 				});
 
+				// Keyboard-accessible move up/down - an addition alongside
+				// drag-and-drop, not a replacement. Independent of jQuery UI
+				// Sortable, gated only on the same data-sortable flag.
+				if ($repeater.data('sortable') !== false) {
+					$repeater.on('click', '.cassette-cmf-repeater-move-up', function (e) {
+						e.preventDefault();
+						const $button = $(this);
+						const $row = $button.closest('.cassette-cmf-repeater-row');
+						const $prev = $row.prev('.cassette-cmf-repeater-row');
+
+						if (!$prev.length) {
+							return;
+						}
+
+						$row.insertBefore($prev);
+						self.updateRowNumbers($repeater);
+						self.updateMoveButtonStates($repeater);
+						self.announceRowMove($repeater, $row);
+						self.focusMoveButton($row, $button);
+					});
+
+					$repeater.on('click', '.cassette-cmf-repeater-move-down', function (e) {
+						e.preventDefault();
+						const $button = $(this);
+						const $row = $button.closest('.cassette-cmf-repeater-row');
+						const $next = $row.next('.cassette-cmf-repeater-row');
+
+						if (!$next.length) {
+							return;
+						}
+
+						$row.insertAfter($next);
+						self.updateRowNumbers($repeater);
+						self.updateMoveButtonStates($repeater);
+						self.announceRowMove($repeater, $row);
+						self.focusMoveButton($row, $button);
+					});
+				}
+
 				// Make sortable
 				if (typeof $.fn.sortable !== 'undefined' && $repeater.data('sortable') !== false) {
 					$rows.sortable({
@@ -555,19 +652,114 @@
 						},
 						stop: function () {
 							self.updateRowNumbers($repeater);
+							self.updateMoveButtonStates($repeater);
 						}
 					});
 				}
 
 				// Initial check
 				self.checkMinMax($repeater);
+				self.updateMoveButtonStates($repeater);
 			});
 		}
 
 		updateRowNumbers($repeater) {
+			const self = this;
+			const rowLabelField = $repeater.data('row-label-field') || '';
+
 			$repeater.find('.cassette-cmf-repeater-rows .cassette-cmf-repeater-row').each(function (index) {
-				$(this).find('> .cassette-cmf-repeater-row-header .cassette-cmf-repeater-row-label').first().text('Row ' + (index + 1));
+				self.updateRowLabelText($(this), rowLabelField, index);
 			});
+		}
+
+		/**
+		 * Get the current value of a row's row_label_field sub-field, if any.
+		 *
+		 * Sub-field inputs are renamed to repeaterName[rowIndex][subFieldName]
+		 * on render, so the target control is matched by that name suffix
+		 * rather than by row index, which changes on add/remove/reorder.
+		 */
+		getRowLabelFieldValue($row, rowLabelField) {
+			const suffix = '[' + rowLabelField + ']';
+			let value = '';
+
+			$row.find('> .cassette-cmf-repeater-row-content :input').each(function () {
+				const name = $(this).attr('name') || '';
+				if (name.slice(-suffix.length) === suffix) {
+					value = $(this).val() || '';
+					return false; // Stop at the first match.
+				}
+			});
+
+			return value;
+		}
+
+		/**
+		 * Set a row's label, preferring its row_label_field sub-field value
+		 * (when configured and non-empty) over index-based "Row N" numbering.
+		 */
+		updateRowLabelText($row, rowLabelField, index) {
+			const $label = $row.find('> .cassette-cmf-repeater-row-header .cassette-cmf-repeater-row-label').first();
+			const fieldValue = rowLabelField ? this.getRowLabelFieldValue($row, rowLabelField) : '';
+
+			$label.text(fieldValue ? fieldValue : 'Row ' + (index + 1));
+		}
+
+		/**
+		 * Disable the first row's "move up" and the last row's "move down"
+		 * button; enable all others. Call after any change to row count or
+		 * order (add, remove, drag-sort, keyboard move).
+		 */
+		updateMoveButtonStates($repeater) {
+			const $allRows = $repeater.find('.cassette-cmf-repeater-rows .cassette-cmf-repeater-row');
+			const lastIndex = $allRows.length - 1;
+
+			$allRows.each(function (index) {
+				const $row = $(this);
+				$row.find('> .cassette-cmf-repeater-row-header .cassette-cmf-repeater-move-up').prop('disabled', index === 0);
+				$row.find('> .cassette-cmf-repeater-row-header .cassette-cmf-repeater-move-down').prop('disabled', index === lastIndex);
+			});
+		}
+
+		/**
+		 * Announce a row's new position via the repeater's polite live
+		 * region, for screen reader users after a keyboard move.
+		 */
+		announceRowMove($repeater, $row) {
+			const $announcer = $repeater.find('> .cassette-cmf-repeater-announcer');
+
+			if (!$announcer.length) {
+				return;
+			}
+
+			const $allRows = $repeater.find('.cassette-cmf-repeater-rows .cassette-cmf-repeater-row');
+			const position = $allRows.index($row) + 1;
+			const total = $allRows.length;
+
+			$announcer.text('Row moved to position ' + position + ' of ' + total + '.');
+		}
+
+		/**
+		 * Return focus to the button just used to move a row. If that
+		 * button is now disabled (the row reached that end of the list),
+		 * focus its sibling move button instead, which is guaranteed
+		 * enabled unless the repeater has a single row.
+		 */
+		focusMoveButton($row, $clickedButton) {
+			if (!$clickedButton.prop('disabled')) {
+				$clickedButton.trigger('focus');
+				return;
+			}
+
+			const isUp = $clickedButton.hasClass('cassette-cmf-repeater-move-up');
+			const $sibling = $row.find(
+				'> .cassette-cmf-repeater-row-header ' +
+				(isUp ? '.cassette-cmf-repeater-move-down' : '.cassette-cmf-repeater-move-up')
+			);
+
+			if ($sibling.length && !$sibling.prop('disabled')) {
+				$sibling.trigger('focus');
+			}
 		}
 
 		checkMinMax($repeater) {

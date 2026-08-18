@@ -13,6 +13,7 @@ Complete guide to creating, extending, and using fields in Cassette-CMF.
 - [Asset Enqueuing](#asset-enqueuing)
 - [Using FieldFactory](#using-fieldfactory)
 - [Integration with CPT and Settings](#integration-with-cpt-and-settings)
+- [Hooks and Filters](#hooks-and-filters)
 - [Advanced Examples](#advanced-examples)
 - [Best Practices](#best-practices)
 
@@ -267,6 +268,16 @@ Single-line text input.
 - `autocomplete` - Autocomplete attribute
 - `readonly` - Make field read-only
 - `disabled` - Disable the field
+- `prepend` / `append` - Content shown inline before/after the input, e.g. a currency symbol or unit. May include limited HTML (sanitized with `wp_kses_post()`):
+  ```php
+  [
+      'name'    => 'price',
+      'type'    => 'text',
+      'label'   => 'Price',
+      'prepend' => '$',
+      'append'  => 'USD',
+  ]
+  ```
 
 ---
 
@@ -291,6 +302,9 @@ Multi-line text input.
 - `rows` - Number of visible rows
 - `cols` - Number of visible columns
 - `maxlength` - Maximum character length
+- `allow_html` - When `true`, sanitizes with `wp_kses_post()` instead of stripping all tags. Default `false`.
+
+**Sanitization:** Textarea content is sanitized with `sanitize_textarea_field()` by default, which strips tags but **preserves newlines** — unlike a single-line `text` field, which collapses them. Set `allow_html => true` to permit safe HTML (via `wp_kses_post()`) while still stripping unsafe tags such as `<script>`.
 
 ---
 
@@ -415,6 +429,15 @@ Numeric input with validation.
 - `min` - Minimum value
 - `max` - Maximum value
 - `step` - Increment step
+- `prepend` / `append` - Content shown inline before/after the input, e.g. a unit. May include limited HTML (sanitized with `wp_kses_post()`):
+  ```php
+  [
+      'name'    => 'width',
+      'type'    => 'number',
+      'label'   => 'Width',
+      'append'  => 'px',
+  ]
+  ```
 
 ---
 
@@ -436,6 +459,7 @@ Email input with validation.
 **Features:**
 - Automatic email validation
 - Uses WordPress `sanitize_email()` for sanitization
+- Input is wrapped in `<span class="cassette-cmf-input-wrapper">` (see [URLField](#urlfield) below for details)
 
 ---
 
@@ -456,6 +480,7 @@ URL input with validation.
 **Features:**
 - Automatic URL validation
 - Uses WordPress `esc_url_raw()` for sanitization
+- Input is wrapped in `<span class="cassette-cmf-input-wrapper">`, giving a hook for adornments (icons, prefixes) via custom CSS, e.g. an absolutely-positioned `::before`/`::after` on the wrapper. Cassette-CMF ships no baseline styling for it beyond the bare element, so it never changes the input's own width or layout.
 
 ---
 
@@ -1000,6 +1025,74 @@ $handler->add_fields('general', [
 
 ---
 
+## Hooks and Filters
+
+Configuration passed to `register_from_array()` (and, since `register_from_json()` decodes to the same array shape and calls it internally, `register_from_json()` too) can be intercepted by other plugins or the host theme via WordPress filters, so an addon can add, remove, or modify fields on a CPT, taxonomy, or settings page it did not itself define.
+
+### Field-level filters (the common case)
+
+Every place fields are extracted from a CPT, taxonomy, or settings page config passes them through:
+
+- `cassette_cmf_fields` — `apply_filters( 'cassette_cmf_fields', $fields, $id, $context )`, where `$context` is `'cpt'`, `'taxonomy'`, or `'settings_page'`.
+- `cassette_cmf_fields_{id}` — `apply_filters( "cassette_cmf_fields_{$id}", $fields, $context )`, scoped to one entity by id, so a callback doesn't need to inspect `$id` itself to decide whether it applies.
+
+```php
+// Add a field to the "book" CPT from another plugin, without touching
+// wherever "book" itself is registered.
+add_filter( 'cassette_cmf_fields_book', function ( array $fields ) {
+    $fields[] = [
+        'name'  => 'added_by_my_addon',
+        'type'  => 'text',
+        'label' => 'Added By My Addon',
+    ];
+    return $fields;
+} );
+
+// Or act on every entity's fields, using $id/$context to decide.
+add_filter( 'cassette_cmf_fields', function ( array $fields, string $id, string $context ) {
+    if ( 'cpt' === $context ) {
+        // ...
+    }
+    return $fields;
+}, 10, 3 );
+```
+
+### Entity-level filters
+
+For changes beyond the fields list — e.g. overriding a CPT's `args`, or a settings page's `capability` — the whole per-entity config is filterable before it's split into `args`/`fields`/etc.:
+
+- `cassette_cmf_cpt_config` / `cassette_cmf_cpt_config_{id}`
+- `cassette_cmf_taxonomy_config` / `cassette_cmf_taxonomy_config_{id}`
+- `cassette_cmf_settings_page_config` / `cassette_cmf_settings_page_config_{id}`
+
+```php
+add_filter( 'cassette_cmf_cpt_config_book', function ( array $config ) {
+    $config['args']['menu_icon'] = 'dashicons-book-alt';
+    return $config;
+} );
+```
+
+### Whole-configuration filter
+
+`cassette_cmf_register_config` runs once, at the top of `register_from_array()`, over the entire configuration array (`cpts`, `taxonomies`, `settings_pages` keys) — coarse-grained, for rewriting the whole thing or injecting a new entity entirely:
+
+```php
+add_filter( 'cassette_cmf_register_config', function ( array $config ) {
+    $config['cpts'][] = [
+        'id'   => 'testimonial',
+        'args' => [ 'label' => 'Testimonials', 'public' => true ],
+    ];
+    return $config;
+} );
+```
+
+### Other hooks
+
+- `cassette_cmf_before_save_field` / `cassette_cmf_before_save_field_{field_name}` — filter a field's value immediately before it's saved; return `null` from the broad filter to skip saving.
+- `cassette_cmf_enqueue_common_assets` — fires after the plugin's own common CSS/JS are enqueued, for addons that need to enqueue their own assets in the same pass.
+
+---
+
 ## Advanced Examples
 
 ### Conditional Fields
@@ -1126,6 +1219,22 @@ class RepeaterField extends AbstractField {
     }
 }
 ```
+
+> **Note:** the built-in `repeater` field type ships a `row_label_field` option: name a sub-field whose value should be used as each row's collapsed label instead of the default `row_label` template (e.g. `'row_label' => 'Row {{index}}'`). Once that sub-field is non-empty for a row, its value replaces the index-based label and updates live as the field is edited — including while dragging rows, so reordering no longer renames every row to match its new position.
+>
+> ```php
+> [
+>     'name'            => 'team_members',
+>     'type'            => 'repeater',
+>     'row_label_field' => 'name',
+>     'fields'          => [
+>         [ 'name' => 'name', 'type' => 'text', 'label' => 'Name' ],
+>         [ 'name' => 'role', 'type' => 'text', 'label' => 'Role' ],
+>     ],
+> ]
+> ```
+>
+> `row_label_field` must reference a sub-field with a single text-like control — `text`, `textarea`, `number`, `email`, `url`, `date`, or `select`. Checkbox, radio, group, and other container sub-fields are not supported as a label source.
 
 ### WYSIWYG Editor Field
 

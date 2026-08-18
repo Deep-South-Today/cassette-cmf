@@ -32,6 +32,7 @@ class Textarea_Field extends Abstract_Field {
 				'cols'        => 50,
 				'placeholder' => '',
 				'maxlength'   => '',
+				'allow_html'  => false,
 			]
 		);
 	}
@@ -83,5 +84,45 @@ class Textarea_Field extends Abstract_Field {
 		$output .= $this->render_wrapper_end();
 
 		return $output;
+	}
+
+	/**
+	 * Sanitize the textarea field value
+	 *
+	 * Unlike a single-line text field, textarea content must preserve
+	 * newlines. sanitize_text_field() (the Abstract_Field default)
+	 * collapses all whitespace runs, including newlines, into a single
+	 * space, which silently destroys multi-line content on save.
+	 *
+	 * @param mixed $input Value to sanitize.
+	 * @return string Sanitized value.
+	 */
+	public function sanitize( $input ) {
+		if ( ! is_string( $input ) ) {
+			return '';
+		}
+
+		if ( ! empty( $this->config['allow_html'] ) ) {
+			if ( function_exists( 'wp_kses_post' ) ) {
+				return wp_kses_post( $input );
+			}
+
+			$input = function_exists( 'wp_strip_all_tags' )
+				? wp_strip_all_tags( $input )
+				: (string) preg_replace( '/<[^>]*>/', '', $input );
+		} elseif ( function_exists( 'sanitize_textarea_field' ) ) {
+			return \sanitize_textarea_field( $input );
+		} else {
+			$input = function_exists( 'wp_strip_all_tags' )
+				? wp_strip_all_tags( $input )
+				: (string) preg_replace( '/<[^>]*>/', '', $input );
+		}
+
+		// Fallback normalization when WordPress sanitizers are unavailable:
+		// collapse horizontal whitespace only, never newlines.
+		$input = str_replace( [ "\r\n", "\r" ], "\n", $input );
+		$input = (string) preg_replace( '/[^\S\n]+/', ' ', $input );
+
+		return trim( $input );
 	}
 }

@@ -19,6 +19,15 @@ use Pedalcms\CassetteCmf\Field\Abstract_Field;
 class Radio_Field extends Abstract_Field {
 
 	/**
+	 * Radio fields render a group of controls, so get_field_id() only
+	 * prefixes each option's own id — there is no single control for a
+	 * settings-page title to be wrapped for.
+	 *
+	 * @var bool
+	 */
+	protected bool $uses_label_wrapper = false;
+
+	/**
 	 * Get field type defaults
 	 *
 	 * @return array<string, mixed>

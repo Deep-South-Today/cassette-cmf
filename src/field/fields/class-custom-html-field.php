@@ -25,6 +25,14 @@ use Pedalcms\CassetteCmf\Field\Abstract_Field;
 class Custom_HTML_Field extends Abstract_Field {
 
 	/**
+	 * Display-only field with no input control at all — a settings-page
+	 * title has nothing to be wrapped in a label for.
+	 *
+	 * @var bool
+	 */
+	protected bool $uses_label_wrapper = false;
+
+	/**
 	 * Get field type defaults
 	 *
 	 * @return array<string, mixed>

@@ -32,6 +32,14 @@ use Pedalcms\CassetteCmf\Field\Field_Factory;
 class Tabs_Field extends Abstract_Field implements Container_Field_Interface {
 
 	/**
+	 * Container field with no single focusable control of its own — a
+	 * settings-page title has nothing to be wrapped in a label for.
+	 *
+	 * @var bool
+	 */
+	protected bool $uses_label_wrapper = false;
+
+	/**
 	 * Get default configuration values
 	 *
 	 * @return array<string, mixed>
@@ -92,7 +100,13 @@ class Tabs_Field extends Abstract_Field implements Container_Field_Interface {
 
 		$orientation = $this->config['orientation'] ?? 'horizontal';
 		$tabs        = $this->config['tabs'] ?? [];
-		$default_tab = $this->config['default_tab'] ?? ( ! empty( $tabs ) ? $tabs[0]['id'] : '' );
+		// Not a plain ?? : default_tab's own default is '' (not null, see
+		// get_defaults()), so ?? never fell through to "first tab" when it
+		// was left unconfigured. That left every tab unselected and every
+		// panel hidden (display:none by default) until JS corrected it,
+		// which also meant no tab had the roving tabindex="0" needed for
+		// the tablist to be keyboard-reachable at all before JS ran.
+		$default_tab = ! empty( $this->config['default_tab'] ) ? $this->config['default_tab'] : ( ! empty( $tabs ) ? $tabs[0]['id'] : '' );
 		$field_id    = $this->get_field_id();
 
 		if ( empty( $tabs ) ) {
@@ -138,48 +152,7 @@ class Tabs_Field extends Abstract_Field implements Container_Field_Interface {
 	 * @return string HTML output.
 	 */
 	protected function render_horizontal_tabs( array $tabs, string $default_tab, string $field_id, $context = null ): string {
-		$output = '<div class="cassette-cmf-tabs cassette-cmf-tabs-horizontal" id="' . $this->esc_attr( $field_id ) . '">';
-
-		// Tab navigation
-		$output .= '<div class="cassette-cmf-tabs-nav">';
-		foreach ( $tabs as $index => $tab ) {
-			$tab_id    = $tab['id'] ?? 'tab-' . $index;
-			$tab_label = $tab['label'] ?? 'Tab ' . ( $index + 1 );
-			$tab_icon  = $tab['icon'] ?? '';
-			$is_active = ( $tab_id === $default_tab ) ? ' active' : '';
-
-			$output .= '<button type="button" class="cassette-cmf-tab-button' . $is_active . '" data-tab="' . $this->esc_attr( $tab_id ) . '">';
-			if ( $tab_icon ) {
-				$output .= '<span class="dashicons ' . $this->esc_attr( $tab_icon ) . '"></span> ';
-			}
-			$output .= $this->esc_html( $tab_label );
-			$output .= '</button>';
-		}
-		$output .= '</div>';
-
-		// Tab content
-		$output .= '<div class="cassette-cmf-tabs-content">';
-		foreach ( $tabs as $index => $tab ) {
-			$tab_id    = $tab['id'] ?? 'tab-' . $index;
-			$is_active = ( $tab_id === $default_tab ) ? ' active' : '';
-
-			$output .= '<div class="cassette-cmf-tab-panel' . $is_active . '" data-tab="' . $this->esc_attr( $tab_id ) . '">';
-
-			if ( ! empty( $tab['description'] ) ) {
-				$output .= '<p class="description">' . $this->esc_html( $tab['description'] ) . '</p>';
-			}
-
-			$output .= $this->render_tab_fields( $tab['fields'] ?? [], $context );
-
-			$output .= '</div>';
-		}
-		$output .= '</div>';
-
-		$output .= '</div>';
-
-		$this->enqueue_tab_scripts();
-
-		return $output;
+		return $this->render_tabs_markup( $tabs, $default_tab, $field_id, $context, 'cassette-cmf-tabs-horizontal' );
 	}
 
 	/**
@@ -192,19 +165,54 @@ class Tabs_Field extends Abstract_Field implements Container_Field_Interface {
 	 * @return string HTML output.
 	 */
 	protected function render_vertical_tabs( array $tabs, string $default_tab, string $field_id, $context = null ): string {
-		$output = '<div class="cassette-cmf-tabs cassette-cmf-tabs-vertical" id="' . $this->esc_attr( $field_id ) . '">';
+		return $this->render_tabs_markup( $tabs, $default_tab, $field_id, $context, 'cassette-cmf-tabs-vertical' );
+	}
 
-		// Tab navigation (sidebar)
-		$output .= '<div class="cassette-cmf-tabs-nav">';
+	/**
+	 * Render the tabs markup shared by both orientations
+	 *
+	 * Implements the WAI-ARIA tabs pattern: the nav is a tablist, each
+	 * button is a tab with aria-controls/aria-selected and a roving
+	 * tabindex (0 on the active tab, -1 on the rest, so the tablist is a
+	 * single stop in the page tab order), and each panel is a tabpanel
+	 * linked back to its tab via aria-labelledby.
+	 *
+	 * @param array<array<string, mixed>> $tabs              Tab definitions.
+	 * @param string                      $default_tab       Default active tab ID.
+	 * @param string                      $field_id          Field ID.
+	 * @param mixed                       $context           Context (post ID or null).
+	 * @param string                      $orientation_class Layout class: cassette-cmf-tabs-horizontal or -vertical.
+	 * @return string HTML output.
+	 */
+	protected function render_tabs_markup( array $tabs, string $default_tab, string $field_id, $context, string $orientation_class ): string {
+		$output = '<div class="cassette-cmf-tabs ' . $this->esc_attr( $orientation_class ) . '" id="' . $this->esc_attr( $field_id ) . '">';
+
+		$tablist_label = $this->get_label();
+		$tablist_attrs = '';
+		if ( ! empty( $tablist_label ) ) {
+			$tablist_attrs = ' aria-label="' . $this->esc_attr( $tablist_label ) . '"';
+		}
+
+		// Tab navigation
+		$output .= '<div class="cassette-cmf-tabs-nav" role="tablist"' . $tablist_attrs . '>';
 		foreach ( $tabs as $index => $tab ) {
 			$tab_id    = $tab['id'] ?? 'tab-' . $index;
 			$tab_label = $tab['label'] ?? 'Tab ' . ( $index + 1 );
 			$tab_icon  = $tab['icon'] ?? '';
-			$is_active = ( $tab_id === $default_tab ) ? ' active' : '';
+			$is_active = ( $tab_id === $default_tab );
+			$button_id = $field_id . '-tab-' . $tab_id;
+			$panel_id  = $field_id . '-panel-' . $tab_id;
 
-			$output .= '<button type="button" class="cassette-cmf-tab-button' . $is_active . '" data-tab="' . $this->esc_attr( $tab_id ) . '">';
+			$output .= '<button type="button" class="cassette-cmf-tab-button' . ( $is_active ? ' active' : '' ) . '"';
+			$output .= ' data-tab="' . $this->esc_attr( $tab_id ) . '"';
+			$output .= ' role="tab"';
+			$output .= ' id="' . $this->esc_attr( $button_id ) . '"';
+			$output .= ' aria-controls="' . $this->esc_attr( $panel_id ) . '"';
+			$output .= ' aria-selected="' . ( $is_active ? 'true' : 'false' ) . '"';
+			$output .= ' tabindex="' . ( $is_active ? '0' : '-1' ) . '"';
+			$output .= '>';
 			if ( $tab_icon ) {
-				$output .= '<span class="dashicons ' . $this->esc_attr( $tab_icon ) . '"></span> ';
+				$output .= '<span class="dashicons ' . $this->esc_attr( $tab_icon ) . '" aria-hidden="true"></span> ';
 			}
 			$output .= $this->esc_html( $tab_label );
 			$output .= '</button>';
@@ -215,9 +223,17 @@ class Tabs_Field extends Abstract_Field implements Container_Field_Interface {
 		$output .= '<div class="cassette-cmf-tabs-content">';
 		foreach ( $tabs as $index => $tab ) {
 			$tab_id    = $tab['id'] ?? 'tab-' . $index;
-			$is_active = ( $tab_id === $default_tab ) ? ' active' : '';
+			$is_active = ( $tab_id === $default_tab );
+			$button_id = $field_id . '-tab-' . $tab_id;
+			$panel_id  = $field_id . '-panel-' . $tab_id;
 
-			$output .= '<div class="cassette-cmf-tab-panel' . $is_active . '" data-tab="' . $this->esc_attr( $tab_id ) . '">';
+			$output .= '<div class="cassette-cmf-tab-panel' . ( $is_active ? ' active' : '' ) . '"';
+			$output .= ' data-tab="' . $this->esc_attr( $tab_id ) . '"';
+			$output .= ' role="tabpanel"';
+			$output .= ' id="' . $this->esc_attr( $panel_id ) . '"';
+			$output .= ' aria-labelledby="' . $this->esc_attr( $button_id ) . '"';
+			$output .= ' tabindex="0"';
+			$output .= '>';
 
 			if ( ! empty( $tab['description'] ) ) {
 				$output .= '<p class="description">' . $this->esc_html( $tab['description'] ) . '</p>';

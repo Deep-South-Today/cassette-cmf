@@ -303,11 +303,12 @@ function cassette_cmf_advanced_array_init() {
 							'priority' => 'low',
 							'fields'   => [
 								[
-									'name'         => 'variations',
-									'type'         => 'repeater',
-									'label'        => 'Variations',
-									'button_label' => 'Add Variation',
-									'fields'       => [
+									'name'            => 'variations',
+									'type'            => 'repeater',
+									'label'           => 'Variations',
+									'button_label'    => 'Add Variation',
+									'row_label_field' => 'variant_name',
+									'fields'          => [
 										[
 											'name'  => 'variant_name',
 											'type'  => 'text',

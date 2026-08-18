@@ -48,6 +48,18 @@ abstract class Abstract_Field implements Field_Interface {
 	protected array $validation_rules = [];
 
 	/**
+	 * Whether this field type renders a single control that a settings-page
+	 * title can be wrapped in a <label for="..."> for.
+	 *
+	 * False for field types that render a group of controls (checkbox,
+	 * radio), a container with no single focusable target of its own
+	 * (tabs, metabox, group, repeater), or no control at all (custom_html).
+	 *
+	 * @var bool
+	 */
+	protected bool $uses_label_wrapper = true;
+
+	/**
 	 * Constructor
 	 *
 	 * @param string               $name   Field name/identifier.
@@ -81,6 +93,8 @@ abstract class Abstract_Field implements Field_Interface {
 			'conditional'     => [],
 			'attributes'      => [],
 			'use_name_prefix' => true,
+			'prepend'         => '',
+			'append'          => '',
 		];
 	}
 
@@ -137,6 +151,16 @@ abstract class Abstract_Field implements Field_Interface {
 	 */
 	public function uses_name_prefix(): bool {
 		return (bool) $this->get_config( 'use_name_prefix', true );
+	}
+
+	/**
+	 * Check whether this field type has a single control that a
+	 * settings-page title can be wrapped in a <label for="..."> for.
+	 *
+	 * @return bool
+	 */
+	public function uses_label_wrapper(): bool {
+		return $this->uses_label_wrapper;
 	}
 
 	/**
@@ -823,6 +847,93 @@ abstract class Abstract_Field implements Field_Interface {
 	}
 
 	/**
+	 * Render input wrapper start
+	 *
+	 * Wraps a field's input element in a span, giving consumers a hook
+	 * for adornments (icons, prefixes) or custom focus treatments without
+	 * needing to restyle the input itself.
+	 *
+	 * By default the wrapper carries no layout styling, so it cannot
+	 * affect the input's existing width/sizing. Pass $has_adornment when
+	 * the field renders a prepend/append, which switches on the flex
+	 * layout needed to sit them inline with the input.
+	 *
+	 * @param bool $has_adornment Whether a prepend/append is present.
+	 * @return string
+	 */
+	protected function render_input_wrapper_start( bool $has_adornment = false ): string {
+		$class = 'cassette-cmf-input-wrapper';
+
+		if ( $has_adornment ) {
+			$class .= ' has-adornment';
+		}
+
+		return '<span class="' . $this->esc_attr( $class ) . '">';
+	}
+
+	/**
+	 * Render input wrapper end
+	 *
+	 * @return string
+	 */
+	protected function render_input_wrapper_end(): string {
+		return '</span>';
+	}
+
+	/**
+	 * Render the prepend adornment
+	 *
+	 * Content may include limited HTML (e.g. <strong>, <abbr>) and is
+	 * sanitized with wp_kses_post() — the same allowance as post content,
+	 * not raw/unescaped output.
+	 *
+	 * @return string
+	 */
+	protected function render_prepend(): string {
+		$prepend = $this->config['prepend'] ?? '';
+
+		if ( empty( $prepend ) ) {
+			return '';
+		}
+
+		return '<span class="cassette-cmf-field-prepend">' . $this->kses_post( $prepend ) . '</span>';
+	}
+
+	/**
+	 * Render the append adornment
+	 *
+	 * @return string
+	 */
+	protected function render_append(): string {
+		$append = $this->config['append'] ?? '';
+
+		if ( empty( $append ) ) {
+			return '';
+		}
+
+		return '<span class="cassette-cmf-field-append">' . $this->kses_post( $append ) . '</span>';
+	}
+
+	/**
+	 * Sanitize a string of limited HTML for safe output
+	 *
+	 * @param string $content Content to sanitize.
+	 * @return string
+	 */
+	protected function kses_post( string $content ): string {
+		if ( function_exists( 'wp_kses_post' ) ) {
+			return \wp_kses_post( $content );
+		}
+
+		if ( function_exists( 'wp_strip_all_tags' ) ) {
+			return \wp_strip_all_tags( $content );
+		}
+
+		// Fallback when WordPress is not loaded (e.g., in tests).
+		return (string) preg_replace( '/<[^>]*>/', '', $content );
+	}
+
+	/**
 	 * Render field label
 	 *
 	 * @param bool $hide_label Whether to hide the label (for contexts where label is rendered elsewhere).
@@ -873,7 +984,7 @@ abstract class Abstract_Field implements Field_Interface {
 	 *
 	 * @return string
 	 */
-	protected function get_field_id(): string {
+	public function get_field_id(): string {
 		$key = function_exists( 'sanitize_key' )
 			? \sanitize_key( $this->name )
 			: strtolower( preg_replace( '/[^a-z0-9_\-]/', '', $this->name ) );

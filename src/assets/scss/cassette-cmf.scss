@@ -11,7 +11,6 @@
 // Variables
 // ==========================================================================
 
-$wp-blue: #2271b1;
 $wp-red: #d63638;
 $wp-red-darker-10: #b52a2c;
 $wp-text-dark: #1d2327;
@@ -113,6 +112,41 @@ $transition-fast: 0.15s ease-in-out;
 			cursor: not-allowed;
 		}
 	}
+}
+
+// .cassette-cmf-input-wrapper carries no styling by default so it never
+// affects a field's existing width/sizing (see input[type] rules above).
+// The has-adornment modifier is added only when a field renders a
+// prepend/append, and switches on the flex layout needed to sit them
+// inline with the input — overriding the input's own width so it fills
+// the remaining flex space instead of shrinking to the wrapper's
+// shrink-to-fit width.
+.cassette-cmf-input-wrapper.has-adornment {
+	display: inline-flex;
+	align-items: center;
+	width: 100%;
+	max-width: $input-max-width;
+
+	input {
+		width: auto;
+		max-width: none;
+		flex: 1 1 auto;
+	}
+}
+
+.cassette-cmf-field-prepend,
+.cassette-cmf-field-append {
+	flex: 0 0 auto;
+	color: $wp-text-light;
+	white-space: nowrap;
+}
+
+.cassette-cmf-field-prepend {
+	margin-right: 6px;
+}
+
+.cassette-cmf-field-append {
+	margin-left: 6px;
 }
 
 // ==========================================================================
@@ -589,6 +623,15 @@ $transition-fast: 0.15s ease-in-out;
 				color: $wp-text-dark;
 			}
 
+			// Explicit outline so focus stays visible regardless of the
+			// active state's border/background overrides above.
+			&:focus-visible {
+				outline: 2px solid var(--wp-admin-theme-color);
+				outline-offset: -2px;
+				position: relative;
+				z-index: 1;
+			}
+
 			.dashicons {
 				font-size: 18px;
 				width: 18px;
@@ -645,6 +688,15 @@ $transition-fast: 0.15s ease-in-out;
 				color: $wp-text-dark;
 				font-weight: 600;
 				margin-right: -1px;
+			}
+
+			// Explicit outline so focus stays visible regardless of the
+			// active state's border/background overrides above.
+			&:focus-visible {
+				outline: 2px solid var(--wp-admin-theme-color);
+				outline-offset: -2px;
+				position: relative;
+				z-index: 1;
 			}
 
 			.dashicons {
@@ -787,6 +839,10 @@ $transition-fast: 0.15s ease-in-out;
 		margin-left: auto;
 	}
 
+	// Move up/down are kept visible rather than hover-only: a
+	// hover-revealed control is unreachable by keyboard.
+	.cassette-cmf-repeater-move-up,
+	.cassette-cmf-repeater-move-down,
 	.cassette-cmf-repeater-toggle,
 	.cassette-cmf-repeater-remove {
 		display: inline-flex;
@@ -806,6 +862,12 @@ $transition-fast: 0.15s ease-in-out;
 			background: #f0f0f1;
 			border-color: $wp-text-light;
 			color: $wp-text-dark;
+		}
+
+		&:disabled {
+			opacity: 0.4;
+			cursor: not-allowed;
+			pointer-events: none;
 		}
 
 		.dashicons {
@@ -828,12 +890,6 @@ $transition-fast: 0.15s ease-in-out;
 			background: #f9e9e9;
 			border-color: $wp-red;
 			color: $wp-red-darker-10;
-		}
-
-		&:disabled {
-			opacity: 0.4;
-			cursor: not-allowed;
-			pointer-events: none;
 		}
 	}
 

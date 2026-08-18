@@ -53,44 +53,49 @@ Update the comparison links at the bottom:
 [0.0.2]: https://github.com/PedalCMS/cassette-cmf/releases/tag/v0.0.2
 ```
 
-### 2. Update Version in README.md
+### 2. Commit Changes
 
-Update the version badge:
-
-```markdown
-[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/PedalCMS/cassette-cmf)
-```
-
-### 3. Commit Changes
+The version number itself does **not** need updating by hand anywhere —
+`bin/set-version.sh`, run automatically from a tag push (see step 4), writes
+it into the README badge, `package.json`, and `composer.json` for you.
 
 ```bash
-git add CHANGELOG.md README.md
+git add CHANGELOG.md
 git commit -m "Prepare release v1.0.0"
 git push origin main
 ```
 
-### 4. Create and Push Tag
+### 3. Create and Push Tag
 
 ```bash
 git tag -a v1.0.0 -m "Release v1.0.0"
 git push origin v1.0.0
 ```
 
-### 5. Automated Release
+### 4. Automated Release
 
-The GitHub Actions workflow will automatically:
+Pushing the tag triggers two workflows:
 
-1. Validate the version format
-2. Install production dependencies
-3. Create distribution packages (`.zip` and `.tar.gz`)
-4. Extract release notes from CHANGELOG.md
-5. Create a GitHub Release with assets
+- **Sync Version From Tag** (`.github/workflows/version-sync.yml`) normalizes
+  the tag (`v1.0.0` -> `1.0.0`), writes it into the README badge,
+  `package.json`, and `composer.json` via `bin/set-version.sh`, and — if
+  anything was out of sync — commits the fix back to `main` and re-points the
+  tag at the corrected commit.
+- **Release** (`.github/workflows/release.yml`) checks out the tag, re-runs
+  `bin/set-version.sh` so the build always reflects the correct version even
+  if version-sync hasn't landed yet, then:
+  1. Validates the version format
+  2. Installs production dependencies
+  3. Creates distribution packages (`.zip` and `.tar.gz`)
+  4. Extracts release notes from `CHANGELOG.md`
+  5. Creates a GitHub Release with assets
 
-### 6. Verify Release
+### 5. Verify Release
 
 1. Go to [Releases](https://github.com/PedalCMS/cassette-cmf/releases)
 2. Verify the release notes are correct
 3. Download and test the distribution packages
+4. Confirm the README badge, `package.json`, and `composer.json` on `main` show the new version
 
 ## Quick Release Commands
 
@@ -100,7 +105,7 @@ composer ci
 
 # Create release
 VERSION="1.0.0"
-git add CHANGELOG.md README.md
+git add CHANGELOG.md
 git commit -m "Prepare release v$VERSION"
 git push origin main
 git tag -a "v$VERSION" -m "Release v$VERSION"

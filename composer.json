@@ -1,6 +1,7 @@
 {
 	"name": "pedalcms/cassette-cmf",
 	"description": "WP Content Modeling Framework",
+	"version": "0.0.9",
 	"type": "library",
 	"require-dev": {
 		"phpunit/phpunit": "^9.6.23",

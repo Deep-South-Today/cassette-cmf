@@ -362,6 +362,7 @@
               "type": "repeater",
               "label": "Scheduled Open Houses",
               "button_label": "Add Open House",
+              "row_label_field": "oh_date",
               "fields": [
                 {
                   "name": "oh_date",

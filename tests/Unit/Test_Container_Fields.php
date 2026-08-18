@@ -215,6 +215,130 @@ class Test_Container_Fields extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test TabsField renders the WAI-ARIA tabs pattern.
+	 *
+	 * Regression test for #73.
+	 */
+	public function test_tabs_field_renders_aria_markup(): void {
+		$field = Field_Factory::create(
+			[
+				'name'        => 'test_tabs',
+				'type'        => 'tabs',
+				'label'       => 'Settings',
+				'orientation' => 'horizontal',
+				'tabs'        => [
+					[
+						'id'     => 'general',
+						'label'  => 'General',
+						'fields' => [],
+					],
+					[
+						'id'     => 'advanced',
+						'label'  => 'Advanced',
+						'fields' => [],
+					],
+				],
+			]
+		);
+
+		$html = $field->render();
+
+		// Tablist container.
+		$this->assertStringContainsString( 'role="tablist"', $html );
+		$this->assertStringContainsString( 'aria-label="Settings"', $html );
+
+		// Active (first/default) tab: selected, in the tab order.
+		$this->assertStringContainsString( 'id="cassette-cmf-field-test_tabs-tab-general"', $html );
+		$this->assertStringContainsString( 'aria-controls="cassette-cmf-field-test_tabs-panel-general"', $html );
+		$this->assertMatchesRegularExpression(
+			'/data-tab="general"[^>]*role="tab"[^>]*aria-selected="true"[^>]*tabindex="0"/',
+			$html
+		);
+
+		// Inactive tab: not selected, removed from the tab order.
+		$this->assertMatchesRegularExpression(
+			'/data-tab="advanced"[^>]*role="tab"[^>]*aria-selected="false"[^>]*tabindex="-1"/',
+			$html
+		);
+
+		// Panels: role, id, and aria-labelledby linkage back to their tab.
+		$this->assertMatchesRegularExpression(
+			'/data-tab="general"[^>]*role="tabpanel"[^>]*id="cassette-cmf-field-test_tabs-panel-general"[^>]*aria-labelledby="cassette-cmf-field-test_tabs-tab-general"/',
+			$html
+		);
+	}
+
+	/**
+	 * Test TabsField renders identical ARIA markup for the vertical
+	 * orientation, since both layouts share the same render path.
+	 *
+	 * Regression test for #73.
+	 */
+	public function test_tabs_field_vertical_renders_aria_markup(): void {
+		$field = Field_Factory::create(
+			[
+				'name'        => 'test_tabs',
+				'type'        => 'tabs',
+				'orientation' => 'vertical',
+				'tabs'        => [
+					[
+						'id'     => 'general',
+						'label'  => 'General',
+						'fields' => [],
+					],
+				],
+			]
+		);
+
+		$html = $field->render();
+
+		$this->assertStringContainsString( 'cassette-cmf-tabs-vertical', $html );
+		$this->assertStringContainsString( 'role="tablist"', $html );
+		$this->assertMatchesRegularExpression(
+			'/data-tab="general"[^>]*role="tab"[^>]*aria-selected="true"[^>]*tabindex="0"/',
+			$html
+		);
+	}
+
+	/**
+	 * Test an explicitly configured default_tab is honored and selected.
+	 *
+	 * Regression test for #73.
+	 */
+	public function test_tabs_field_explicit_default_tab(): void {
+		$field = Field_Factory::create(
+			[
+				'name'        => 'test_tabs',
+				'type'        => 'tabs',
+				'default_tab' => 'advanced',
+				'tabs'        => [
+					[
+						'id'     => 'general',
+						'label'  => 'General',
+						'fields' => [],
+					],
+					[
+						'id'     => 'advanced',
+						'label'  => 'Advanced',
+						'fields' => [],
+					],
+				],
+			]
+		);
+
+		$html = $field->render();
+
+		$this->assertMatchesRegularExpression(
+			'/data-tab="advanced"[^>]*role="tab"[^>]*aria-selected="true"[^>]*tabindex="0"/',
+			$html
+		);
+		$this->assertMatchesRegularExpression(
+			'/data-tab="general"[^>]*role="tab"[^>]*aria-selected="false"[^>]*tabindex="-1"/',
+			$html
+		);
+	}
+
+	/**
 	 * Test GroupField renders wrapper.
 	 */
 	public function test_group_field_renders(): void {
@@ -303,5 +427,56 @@ class Test_Container_Fields extends WP_UnitTestCase {
 		$html = $field->render( null );
 
 		$this->assertStringContainsString( 'cassette-cmf-metabox', $html );
+	}
+
+	/**
+	 * Test container field types do not use a label wrapper.
+	 *
+	 * Regression test for #50: container fields have no single focusable
+	 * control of their own, so a settings-page title has nothing for
+	 * label_for to point at.
+	 */
+	public function test_container_field_types_do_not_use_label_wrapper(): void {
+		$configs = [
+			'tabs'     => [
+				'name'  => 'test_tabs',
+				'type'  => 'tabs',
+				'label' => 'Test Tabs',
+				'tabs'  => [
+					[
+						'id'     => 'tab1',
+						'label'  => 'Tab 1',
+						'fields' => [],
+					],
+				],
+			],
+			'metabox'  => [
+				'name'   => 'test_metabox',
+				'type'   => 'metabox',
+				'label'  => 'Test Metabox',
+				'fields' => [],
+			],
+			'group'    => [
+				'name'   => 'test_group',
+				'type'   => 'group',
+				'label'  => 'Test Group',
+				'fields' => [],
+			],
+			'repeater' => [
+				'name'   => 'test_repeater',
+				'type'   => 'repeater',
+				'label'  => 'Test Repeater',
+				'fields' => [],
+			],
+		];
+
+		foreach ( $configs as $type => $config ) {
+			$field = Field_Factory::create( $config );
+
+			$this->assertFalse(
+				$field->uses_label_wrapper(),
+				"Expected '{$type}' field to NOT use a label wrapper."
+			);
+		}
 	}
 }
