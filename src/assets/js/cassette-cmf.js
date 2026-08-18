@@ -262,43 +262,85 @@
 		}
 
 		init() {
+			const self = this;
+
 			$(this.selector).each(function () {
-				const $tabs = $(this);
-				const $buttons = $tabs.find('.cassette-cmf-tab-button');
-				const $panels = $tabs.find('.cassette-cmf-tab-panel');
+				const $tabsField = $(this);
+				const $tablist = $tabsField.find('.cassette-cmf-tabs-nav');
+				const $buttons = $tabsField.find('.cassette-cmf-tab-button');
+				const $panels = $tabsField.find('.cassette-cmf-tab-panel');
 
 				// Skip if already initialized
-				if ($tabs.data('tabs-initialized')) {
+				if ($tabsField.data('tabs-initialized')) {
 					return;
 				}
-				$tabs.data('tabs-initialized', true);
+				$tabsField.data('tabs-initialized', true);
 
 				$buttons.on('click', function (e) {
 					e.preventDefault();
-					const targetId = $(this).data('tab');
-					const $targetPanel = $tabs.find('.cassette-cmf-tab-panel[data-tab="' + targetId + '"]');
+					self.activateTab($tabsField, $buttons, $panels, $(this));
+				});
 
-					// Update buttons
-					$buttons.removeClass('active');
-					$(this).addClass('active');
+				// Arrow keys move focus and activate (automatic-activation
+				// tabs pattern); Home/End jump to the first/last tab.
+				$tablist.on('keydown', '.cassette-cmf-tab-button', function (e) {
+					const currentIndex = $buttons.index(this);
+					let targetIndex = null;
 
-					// Update panels - use data-tab attribute selector
-					$panels.removeClass('active').hide();
-					$targetPanel.addClass('active').show();
-					$(document).trigger('cassette-cmf-tab-activated', [$targetPanel]);
+					switch (e.key) {
+						case 'ArrowRight':
+						case 'ArrowDown':
+							targetIndex = (currentIndex + 1) % $buttons.length;
+							break;
+						case 'ArrowLeft':
+						case 'ArrowUp':
+							targetIndex = (currentIndex - 1 + $buttons.length) % $buttons.length;
+							break;
+						case 'Home':
+							targetIndex = 0;
+							break;
+						case 'End':
+							targetIndex = $buttons.length - 1;
+							break;
+						default:
+							return;
+					}
+
+					e.preventDefault();
+					const $target = $buttons.eq(targetIndex);
+					self.activateTab($tabsField, $buttons, $panels, $target);
+					$target.trigger('focus');
 				});
 
 				// Activate first tab if none active
 				if ($buttons.filter('.active').length === 0 && $buttons.length > 0) {
-					$buttons.first().trigger('click');
+					self.activateTab($tabsField, $buttons, $panels, $buttons.first());
 				} else {
-					// Show active panel
+					// Show active panel and sync ARIA state to match.
 					$panels.hide();
 					$panels.filter('.active').show().each(function () {
 						$(document).trigger('cassette-cmf-tab-activated', [$(this)]);
 					});
 				}
 			});
+		}
+
+		/**
+		 * Activate a tab: update the active class, aria-selected, and the
+		 * roving tabindex on every button, show the matching panel, and
+		 * fire cassette-cmf-tab-activated (which the WYSIWYG field listens
+		 * for to lazily initialize editors inside non-default tabs).
+		 */
+		activateTab($tabsField, $buttons, $panels, $button) {
+			const targetId = $button.data('tab');
+			const $targetPanel = $tabsField.find('.cassette-cmf-tab-panel[data-tab="' + targetId + '"]');
+
+			$buttons.removeClass('active').attr({ 'aria-selected': 'false', tabindex: '-1' });
+			$button.addClass('active').attr({ 'aria-selected': 'true', tabindex: '0' });
+
+			$panels.removeClass('active').hide();
+			$targetPanel.addClass('active').show();
+			$(document).trigger('cassette-cmf-tab-activated', [$targetPanel]);
 		}
 	}
 
