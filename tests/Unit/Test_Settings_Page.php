@@ -257,6 +257,38 @@ class Test_Settings_Page extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test submenu position is honored on registration.
+	 *
+	 * Regression test for #83: add_submenu_page() accepts a seventh
+	 * position argument (WP 5.3+), but Settings_Page::register() never
+	 * passed it through, so submenu pages always appended to the end of
+	 * their parent menu regardless of set_position().
+	 */
+	public function test_settings_page_submenu_honors_position(): void {
+		global $submenu;
+
+		// Prime the Settings parent menu with an existing submenu item so
+		// there is something to insert ahead of.
+		$submenu['options-general.php'] = [
+			[ 'Existing', 'manage_options', 'existing-page', 'Existing' ],
+		];
+
+		$page = new Settings_Page( 'positioned_sub_settings' );
+		$page->set_page_title( 'Positioned Submenu' );
+		$page->set_menu_title( 'Positioned' );
+		$page->set_parent( 'options-general.php' );
+		$page->set_position( 0 );
+
+		$this->assertTrue( $page->register() );
+
+		$this->assertArrayHasKey( 'options-general.php', $submenu );
+		$menu_slugs = wp_list_pluck( $submenu['options-general.php'], 2 );
+		$this->assertSame( 'positioned_sub_settings', $menu_slugs[0], 'Position 0 should place the submenu item first.' );
+
+		unset( $submenu['options-general.php'] );
+	}
+
+	/**
 	 * Test Settings_Page is not submenu by default.
 	 */
 	public function test_settings_page_not_submenu_by_default(): void {

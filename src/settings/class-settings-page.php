@@ -243,7 +243,8 @@ class Settings_Page {
 				$this->config['menu_title'],
 				$this->config['capability'],
 				$this->config['menu_slug'],
-				$this->config['callback']
+				$this->config['callback'],
+				$this->config['position']
 			);
 		} else {
 			$this->hook_suffix = add_menu_page(
