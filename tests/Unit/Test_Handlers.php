@@ -192,6 +192,34 @@ class Test_Handlers extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test get_version() resolves composer.json's "version" key.
+	 *
+	 * Regression test: the path was computed as dirname(dirname(__DIR__)),
+	 * which from src/core/Handlers only reaches src/ — one level short of
+	 * the repository root where composer.json actually lives — so the
+	 * file was never found and this always silently fell back to a
+	 * file-mtime timestamp, regardless of composer.json's content.
+	 */
+	public function test_get_version_resolves_composer_json(): void {
+		$composer_path = dirname( __DIR__, 2 ) . '/composer.json';
+		$this->assertFileExists( $composer_path, 'Sanity check: composer.json should exist at the repository root.' );
+
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+		$composer = json_decode( file_get_contents( $composer_path ), true );
+		$this->assertArrayHasKey(
+			'version',
+			$composer,
+			'composer.json should declare a version key; bin/set-version.sh adds one if absent.'
+		);
+
+		$handler = new New_Post_Type_Handler();
+		$method  = new ReflectionMethod( $handler, 'get_version' );
+		$method->setAccessible( true );
+
+		$this->assertSame( $composer['version'], $method->invoke( $handler ) );
+	}
+
+	/**
 	 * Test handler works via Manager.
 	 */
 	public function test_handler_via_manager(): void {
