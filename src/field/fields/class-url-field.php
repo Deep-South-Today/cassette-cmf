@@ -80,7 +80,9 @@ class URL_Field extends Abstract_Field {
 			$attributes['disabled'] = true;
 		}
 
+		$output .= $this->render_input_wrapper_start();
 		$output .= '<input' . $this->build_attributes( $attributes ) . ' />';
+		$output .= $this->render_input_wrapper_end();
 		$output .= $this->render_description();
 		$output .= $this->render_wrapper_end();
 

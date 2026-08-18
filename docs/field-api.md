@@ -439,6 +439,7 @@ Email input with validation.
 **Features:**
 - Automatic email validation
 - Uses WordPress `sanitize_email()` for sanitization
+- Input is wrapped in `<span class="cassette-cmf-input-wrapper">` (see [URLField](#urlfield) below for details)
 
 ---
 
@@ -459,6 +460,7 @@ URL input with validation.
 **Features:**
 - Automatic URL validation
 - Uses WordPress `esc_url_raw()` for sanitization
+- Input is wrapped in `<span class="cassette-cmf-input-wrapper">`, giving a hook for adornments (icons, prefixes) via custom CSS, e.g. an absolutely-positioned `::before`/`::after` on the wrapper. Cassette-CMF ships no baseline styling for it beyond the bare element, so it never changes the input's own width or layout.
 
 ---
 

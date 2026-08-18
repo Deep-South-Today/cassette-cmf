@@ -845,6 +845,28 @@ abstract class Abstract_Field implements Field_Interface {
 	}
 
 	/**
+	 * Render input wrapper start
+	 *
+	 * Wraps a field's input element in a span, giving consumers a hook
+	 * for adornments (icons, prefixes) or custom focus treatments without
+	 * needing to restyle the input itself.
+	 *
+	 * @return string
+	 */
+	protected function render_input_wrapper_start(): string {
+		return '<span class="cassette-cmf-input-wrapper">';
+	}
+
+	/**
+	 * Render input wrapper end
+	 *
+	 * @return string
+	 */
+	protected function render_input_wrapper_end(): string {
+		return '</span>';
+	}
+
+	/**
 	 * Render field label
 	 *
 	 * @param bool $hide_label Whether to hide the label (for contexts where label is rendered elsewhere).

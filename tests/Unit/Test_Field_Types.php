@@ -291,6 +291,12 @@ class Test_Field_Types extends WP_UnitTestCase {
 
 		$this->assertStringContainsString( 'type="email"', $html );
 		$this->assertStringContainsString( 'value="test@example.com"', $html );
+
+		// Regression test for #55: input is wrapped in a span hook.
+		$this->assertMatchesRegularExpression(
+			'#<span class="cassette-cmf-input-wrapper"><input[^>]*type="email"[^>]*/></span>#',
+			$html
+		);
 	}
 
 	/**
@@ -328,6 +334,12 @@ class Test_Field_Types extends WP_UnitTestCase {
 
 		$this->assertStringContainsString( 'type="url"', $html );
 		$this->assertStringContainsString( 'value="https://example.com"', $html );
+
+		// Regression test for #55: input is wrapped in a span hook.
+		$this->assertMatchesRegularExpression(
+			'#<span class="cassette-cmf-input-wrapper"><input[^>]*type="url"[^>]*/></span>#',
+			$html
+		);
 	}
 
 	/**
