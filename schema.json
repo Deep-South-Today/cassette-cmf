@@ -531,6 +531,14 @@
           "description": "For textarea fields, allow safe HTML (sanitized with wp_kses_post) instead of stripping all tags",
           "default": false
         },
+        "prepend": {
+          "type": "string",
+          "description": "Content to display before the input (text and number fields). May include limited HTML, sanitized with wp_kses_post."
+        },
+        "append": {
+          "type": "string",
+          "description": "Content to display after the input (text and number fields). May include limited HTML, sanitized with wp_kses_post."
+        },
         "readonly": {
           "type": "boolean",
           "description": "Make field read-only",

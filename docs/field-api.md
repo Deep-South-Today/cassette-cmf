@@ -267,6 +267,16 @@ Single-line text input.
 - `autocomplete` - Autocomplete attribute
 - `readonly` - Make field read-only
 - `disabled` - Disable the field
+- `prepend` / `append` - Content shown inline before/after the input, e.g. a currency symbol or unit. May include limited HTML (sanitized with `wp_kses_post()`):
+  ```php
+  [
+      'name'    => 'price',
+      'type'    => 'text',
+      'label'   => 'Price',
+      'prepend' => '$',
+      'append'  => 'USD',
+  ]
+  ```
 
 ---
 
@@ -418,6 +428,15 @@ Numeric input with validation.
 - `min` - Minimum value
 - `max` - Maximum value
 - `step` - Increment step
+- `prepend` / `append` - Content shown inline before/after the input, e.g. a unit. May include limited HTML (sanitized with `wp_kses_post()`):
+  ```php
+  [
+      'name'    => 'width',
+      'type'    => 'number',
+      'label'   => 'Width',
+      'append'  => 'px',
+  ]
+  ```
 
 ---
 

@@ -93,6 +93,8 @@ abstract class Abstract_Field implements Field_Interface {
 			'conditional'     => [],
 			'attributes'      => [],
 			'use_name_prefix' => true,
+			'prepend'         => '',
+			'append'          => '',
 		];
 	}
 
@@ -851,10 +853,22 @@ abstract class Abstract_Field implements Field_Interface {
 	 * for adornments (icons, prefixes) or custom focus treatments without
 	 * needing to restyle the input itself.
 	 *
+	 * By default the wrapper carries no layout styling, so it cannot
+	 * affect the input's existing width/sizing. Pass $has_adornment when
+	 * the field renders a prepend/append, which switches on the flex
+	 * layout needed to sit them inline with the input.
+	 *
+	 * @param bool $has_adornment Whether a prepend/append is present.
 	 * @return string
 	 */
-	protected function render_input_wrapper_start(): string {
-		return '<span class="cassette-cmf-input-wrapper">';
+	protected function render_input_wrapper_start( bool $has_adornment = false ): string {
+		$class = 'cassette-cmf-input-wrapper';
+
+		if ( $has_adornment ) {
+			$class .= ' has-adornment';
+		}
+
+		return '<span class="' . $this->esc_attr( $class ) . '">';
 	}
 
 	/**
@@ -864,6 +878,59 @@ abstract class Abstract_Field implements Field_Interface {
 	 */
 	protected function render_input_wrapper_end(): string {
 		return '</span>';
+	}
+
+	/**
+	 * Render the prepend adornment
+	 *
+	 * Content may include limited HTML (e.g. <strong>, <abbr>) and is
+	 * sanitized with wp_kses_post() — the same allowance as post content,
+	 * not raw/unescaped output.
+	 *
+	 * @return string
+	 */
+	protected function render_prepend(): string {
+		$prepend = $this->config['prepend'] ?? '';
+
+		if ( empty( $prepend ) ) {
+			return '';
+		}
+
+		return '<span class="cassette-cmf-field-prepend">' . $this->kses_post( $prepend ) . '</span>';
+	}
+
+	/**
+	 * Render the append adornment
+	 *
+	 * @return string
+	 */
+	protected function render_append(): string {
+		$append = $this->config['append'] ?? '';
+
+		if ( empty( $append ) ) {
+			return '';
+		}
+
+		return '<span class="cassette-cmf-field-append">' . $this->kses_post( $append ) . '</span>';
+	}
+
+	/**
+	 * Sanitize a string of limited HTML for safe output
+	 *
+	 * @param string $content Content to sanitize.
+	 * @return string
+	 */
+	protected function kses_post( string $content ): string {
+		if ( function_exists( 'wp_kses_post' ) ) {
+			return \wp_kses_post( $content );
+		}
+
+		if ( function_exists( 'wp_strip_all_tags' ) ) {
+			return \wp_strip_all_tags( $content );
+		}
+
+		// Fallback when WordPress is not loaded (e.g., in tests).
+		return (string) preg_replace( '/<[^>]*>/', '', $content );
 	}
 
 	/**

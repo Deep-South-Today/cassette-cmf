@@ -114,6 +114,41 @@ $transition-fast: 0.15s ease-in-out;
 	}
 }
 
+// .cassette-cmf-input-wrapper carries no styling by default so it never
+// affects a field's existing width/sizing (see input[type] rules above).
+// The has-adornment modifier is added only when a field renders a
+// prepend/append, and switches on the flex layout needed to sit them
+// inline with the input — overriding the input's own width so it fills
+// the remaining flex space instead of shrinking to the wrapper's
+// shrink-to-fit width.
+.cassette-cmf-input-wrapper.has-adornment {
+	display: inline-flex;
+	align-items: center;
+	width: 100%;
+	max-width: $input-max-width;
+
+	input {
+		width: auto;
+		max-width: none;
+		flex: 1 1 auto;
+	}
+}
+
+.cassette-cmf-field-prepend,
+.cassette-cmf-field-append {
+	flex: 0 0 auto;
+	color: $wp-text-light;
+	white-space: nowrap;
+}
+
+.cassette-cmf-field-prepend {
+	margin-right: 6px;
+}
+
+.cassette-cmf-field-append {
+	margin-left: 6px;
+}
+
 // ==========================================================================
 // Textarea
 // ==========================================================================

@@ -110,6 +110,75 @@ class Test_Field_Types extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test TextField renders prepend and append adornments.
+	 *
+	 * Regression test for #52.
+	 */
+	public function test_text_field_prepend_append(): void {
+		$field = Field_Factory::create(
+			[
+				'name'    => 'test_price',
+				'type'    => 'text',
+				'label'   => 'Price',
+				'prepend' => '$',
+				'append'  => 'USD',
+			]
+		);
+
+		$html = $field->render( '10' );
+
+		$this->assertStringContainsString( '<span class="cassette-cmf-input-wrapper has-adornment">', $html );
+		$this->assertStringContainsString( '<span class="cassette-cmf-field-prepend">$</span>', $html );
+		$this->assertStringContainsString( '<span class="cassette-cmf-field-append">USD</span>', $html );
+		// Prepend must render before the input, append after.
+		$this->assertMatchesRegularExpression(
+			'#cassette-cmf-field-prepend">\$</span><input[^>]*><span class="cassette-cmf-field-append">USD</span>#',
+			$html
+		);
+	}
+
+	/**
+	 * Test TextField without prepend/append renders a bare wrapper with
+	 * no has-adornment modifier, so unaffected fields keep their existing
+	 * layout unchanged.
+	 */
+	public function test_text_field_no_adornment_omits_modifier_class(): void {
+		$field = Field_Factory::create(
+			[
+				'name'  => 'test_plain',
+				'type'  => 'text',
+				'label' => 'Plain',
+			]
+		);
+
+		$html = $field->render( 'value' );
+
+		$this->assertStringContainsString( '<span class="cassette-cmf-input-wrapper">', $html );
+		$this->assertStringNotContainsString( 'has-adornment', $html );
+		$this->assertStringNotContainsString( 'cassette-cmf-field-prepend', $html );
+		$this->assertStringNotContainsString( 'cassette-cmf-field-append', $html );
+	}
+
+	/**
+	 * Test prepend/append strip unsafe tags but allow safe HTML.
+	 */
+	public function test_text_field_prepend_append_sanitizes_html(): void {
+		$field = Field_Factory::create(
+			[
+				'name'    => 'test_html',
+				'type'    => 'text',
+				'label'   => 'Test',
+				'prepend' => '<strong>$</strong><script>alert(1)</script>',
+			]
+		);
+
+		$html = $field->render( '' );
+
+		$this->assertStringContainsString( '<strong>$</strong>', $html );
+		$this->assertStringNotContainsString( '<script>', $html );
+	}
+
+	/**
 	 * Test TextareaField renders correctly.
 	 */
 	public function test_textarea_field_render(): void {
@@ -273,6 +342,28 @@ class Test_Field_Types extends WP_UnitTestCase {
 
 		$this->assertSame( 42, $field->sanitize( '42' ) );
 		$this->assertSame( 42.5, $field->sanitize( '42.5' ) );
+	}
+
+	/**
+	 * Test NumberField renders an append adornment (e.g. a unit).
+	 *
+	 * Regression test for #52.
+	 */
+	public function test_number_field_append(): void {
+		$field = Field_Factory::create(
+			[
+				'name'   => 'test_width',
+				'type'   => 'number',
+				'label'  => 'Width',
+				'append' => 'px',
+			]
+		);
+
+		$html = $field->render( 100 );
+
+		$this->assertStringContainsString( '<span class="cassette-cmf-input-wrapper has-adornment">', $html );
+		$this->assertStringContainsString( '<span class="cassette-cmf-field-append">px</span>', $html );
+		$this->assertStringNotContainsString( 'cassette-cmf-field-prepend', $html );
 	}
 
 	/**
