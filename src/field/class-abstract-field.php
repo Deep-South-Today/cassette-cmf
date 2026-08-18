@@ -48,6 +48,18 @@ abstract class Abstract_Field implements Field_Interface {
 	protected array $validation_rules = [];
 
 	/**
+	 * Whether this field type renders a single control that a settings-page
+	 * title can be wrapped in a <label for="..."> for.
+	 *
+	 * False for field types that render a group of controls (checkbox,
+	 * radio), a container with no single focusable target of its own
+	 * (tabs, metabox, group, repeater), or no control at all (custom_html).
+	 *
+	 * @var bool
+	 */
+	protected bool $uses_label_wrapper = true;
+
+	/**
 	 * Constructor
 	 *
 	 * @param string               $name   Field name/identifier.
@@ -137,6 +149,16 @@ abstract class Abstract_Field implements Field_Interface {
 	 */
 	public function uses_name_prefix(): bool {
 		return (bool) $this->get_config( 'use_name_prefix', true );
+	}
+
+	/**
+	 * Check whether this field type has a single control that a
+	 * settings-page title can be wrapped in a <label for="..."> for.
+	 *
+	 * @return bool
+	 */
+	public function uses_label_wrapper(): bool {
+		return $this->uses_label_wrapper;
 	}
 
 	/**
@@ -873,7 +895,7 @@ abstract class Abstract_Field implements Field_Interface {
 	 *
 	 * @return string
 	 */
-	protected function get_field_id(): string {
+	public function get_field_id(): string {
 		$key = function_exists( 'sanitize_key' )
 			? \sanitize_key( $this->name )
 			: strtolower( preg_replace( '/[^a-z0-9_\-]/', '', $this->name ) );

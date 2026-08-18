@@ -220,17 +220,23 @@ class New_Settings_Page_Handler extends Abstract_Handler {
 			}
 
 			// Add field to default section
+			$field_args = [
+				'field'       => $field,
+				'option_name' => $option_name,
+				'page_id'     => $page_id,
+			];
+
+			if ( $field->uses_label_wrapper() ) {
+				$field_args['label_for'] = $field->get_field_id();
+			}
+
 			add_settings_field(
 				$field_name,
 				$field->get_label(),
 				[ $this, 'render_field' ],
 				$menu_slug,
 				$default_section_id,
-				[
-					'field'       => $field,
-					'option_name' => $option_name,
-					'page_id'     => $page_id,
-				]
+				$field_args
 			);
 		}
 	}
@@ -305,17 +311,23 @@ class New_Settings_Page_Handler extends Abstract_Handler {
 				$nested_field  = Field_Factory::create( $nested_config );
 				$nested_option = $nested_field->get_option_name( $page_id );
 
+				$nested_args = [
+					'field'       => $nested_field,
+					'option_name' => $nested_option,
+					'page_id'     => $page_id,
+				];
+
+				if ( $nested_field->uses_label_wrapper() ) {
+					$nested_args['label_for'] = $nested_field->get_field_id();
+				}
+
 				add_settings_field(
 					$nested_field->get_name(),
 					$nested_field->get_label(),
 					[ $this, 'render_field' ],
 					$menu_slug,
 					$section_id,
-					[
-						'field'       => $nested_field,
-						'option_name' => $nested_option,
-						'page_id'     => $page_id,
-					]
+					$nested_args
 				);
 			} catch ( \InvalidArgumentException $e ) {
 				continue;

@@ -304,4 +304,55 @@ class Test_Container_Fields extends WP_UnitTestCase {
 
 		$this->assertStringContainsString( 'cassette-cmf-metabox', $html );
 	}
+
+	/**
+	 * Test container field types do not use a label wrapper.
+	 *
+	 * Regression test for #50: container fields have no single focusable
+	 * control of their own, so a settings-page title has nothing for
+	 * label_for to point at.
+	 */
+	public function test_container_field_types_do_not_use_label_wrapper(): void {
+		$configs = [
+			'tabs'     => [
+				'name'  => 'test_tabs',
+				'type'  => 'tabs',
+				'label' => 'Test Tabs',
+				'tabs'  => [
+					[
+						'id'     => 'tab1',
+						'label'  => 'Tab 1',
+						'fields' => [],
+					],
+				],
+			],
+			'metabox'  => [
+				'name'   => 'test_metabox',
+				'type'   => 'metabox',
+				'label'  => 'Test Metabox',
+				'fields' => [],
+			],
+			'group'    => [
+				'name'   => 'test_group',
+				'type'   => 'group',
+				'label'  => 'Test Group',
+				'fields' => [],
+			],
+			'repeater' => [
+				'name'   => 'test_repeater',
+				'type'   => 'repeater',
+				'label'  => 'Test Repeater',
+				'fields' => [],
+			],
+		];
+
+		foreach ( $configs as $type => $config ) {
+			$field = Field_Factory::create( $config );
+
+			$this->assertFalse(
+				$field->uses_label_wrapper(),
+				"Expected '{$type}' field to NOT use a label wrapper."
+			);
+		}
+	}
 }

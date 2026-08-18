@@ -1017,4 +1017,22 @@ class Test_Additional_Field_Types extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'cassette-cmf-upload-preview', $html );
 		$this->assertStringContainsString( 'cassette-cmf-upload-container', $html );
 	}
+
+	/**
+	 * Test Custom_HTML_Field does not use a label wrapper.
+	 *
+	 * Regression test for #50: this field type has no input control at
+	 * all, so a settings-page title has nothing for label_for to point at.
+	 */
+	public function test_custom_html_field_does_not_use_label_wrapper(): void {
+		$field = Field_Factory::create(
+			[
+				'name'    => 'test_custom_html',
+				'type'    => 'custom_html',
+				'content' => '<p>Some content</p>',
+			]
+		);
+
+		$this->assertFalse( $field->uses_label_wrapper() );
+	}
 }

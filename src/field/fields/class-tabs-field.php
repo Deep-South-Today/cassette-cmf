@@ -32,6 +32,14 @@ use Pedalcms\CassetteCmf\Field\Field_Factory;
 class Tabs_Field extends Abstract_Field implements Container_Field_Interface {
 
 	/**
+	 * Container field with no single focusable control of its own — a
+	 * settings-page title has nothing to be wrapped in a label for.
+	 *
+	 * @var bool
+	 */
+	protected bool $uses_label_wrapper = false;
+
+	/**
 	 * Get default configuration values
 	 *
 	 * @return array<string, mixed>

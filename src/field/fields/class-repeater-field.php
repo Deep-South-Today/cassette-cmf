@@ -38,6 +38,14 @@ use Pedalcms\CassetteCmf\Field\Field_Factory;
 class Repeater_Field extends Abstract_Field {
 
 	/**
+	 * Container field with no single focusable control of its own — a
+	 * settings-page title has nothing to be wrapped in a label for.
+	 *
+	 * @var bool
+	 */
+	protected bool $uses_label_wrapper = false;
+
+	/**
 	 * Constructor.
 	 *
 	 * @param string               $name   Field name/identifier.

@@ -441,4 +441,56 @@ class Test_Field_Types extends WP_UnitTestCase {
 		// Invalid color returns default
 		$this->assertSame( '#000000', $field->sanitize( 'invalid' ) );
 	}
+
+	/**
+	 * Test single-input field types report they use a label wrapper.
+	 *
+	 * Regression test for #50: these field types render exactly one
+	 * control with an id matching get_field_id(), so a settings-page
+	 * title can correctly be wrapped in <label for="...">.
+	 */
+	public function test_single_input_field_types_use_label_wrapper(): void {
+		$types = [ 'text', 'textarea', 'select', 'number', 'email', 'url', 'date', 'password', 'color' ];
+
+		foreach ( $types as $type ) {
+			$field = Field_Factory::create(
+				[
+					'name'  => 'test_' . $type,
+					'type'  => $type,
+					'label' => 'Test',
+				]
+			);
+
+			$this->assertTrue(
+				$field->uses_label_wrapper(),
+				"Expected '{$type}' field to use a label wrapper."
+			);
+			$this->assertSame( 'cassette-cmf-field-test_' . $type, $field->get_field_id() );
+		}
+	}
+
+	/**
+	 * Test grouped-control field types do not use a label wrapper.
+	 *
+	 * Regression test for #50: checkbox and radio fields render a group
+	 * of controls (or, for a single checkbox, their own inline <label>),
+	 * so there is no single control for a settings-page title's
+	 * label_for to point at.
+	 */
+	public function test_grouped_field_types_do_not_use_label_wrapper(): void {
+		foreach ( [ 'checkbox', 'radio' ] as $type ) {
+			$field = Field_Factory::create(
+				[
+					'name'  => 'test_' . $type,
+					'type'  => $type,
+					'label' => 'Test',
+				]
+			);
+
+			$this->assertFalse(
+				$field->uses_label_wrapper(),
+				"Expected '{$type}' field to NOT use a label wrapper."
+			);
+		}
+	}
 }

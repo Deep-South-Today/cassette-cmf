@@ -119,4 +119,21 @@ interface Field_Interface {
 	 * @return bool True if field uses prefix, false otherwise.
 	 */
 	public function uses_name_prefix(): bool;
+
+	/**
+	 * Get the field's HTML id attribute
+	 *
+	 * @return string HTML id used on the field's rendered markup.
+	 */
+	public function get_field_id(): string;
+
+	/**
+	 * Check whether this field type has a single control that a
+	 * settings-page title can be wrapped in a <label for="..."> for.
+	 *
+	 * @return bool True if the title should be wrapped in a label pointing
+	 *              at get_field_id(), false for grouped/container/no-input
+	 *              field types.
+	 */
+	public function uses_label_wrapper(): bool;
 }

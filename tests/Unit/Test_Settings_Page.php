@@ -384,4 +384,55 @@ class Test_Settings_Page extends WP_UnitTestCase {
 		$this->assertTrue( $handler->has_page( 'page_two' ) );
 		$this->assertTrue( $handler->has_page( 'page_three' ) );
 	}
+
+	/**
+	 * Test add_settings_field receives label_for for single-input fields
+	 * but not for grouped-control fields.
+	 *
+	 * Regression test for #50: settings field titles were never wrapped
+	 * in a <label for="...">, so clicking a field's title did not focus
+	 * its input. Registers a text and a checkbox field on the same page
+	 * and inspects the global $wp_settings_fields WordPress populates,
+	 * since that is exactly what do_settings_fields() reads to decide
+	 * whether to wrap the title in a label.
+	 */
+	public function test_settings_field_label_for_wiring(): void {
+		global $wp_settings_fields;
+
+		$manager = Manager::init();
+		$manager->register_from_array(
+			[
+				'settings_pages' => [
+					[
+						'id'         => 'label_for_page',
+						'page_title' => 'Label For Page',
+						'menu_title' => 'Label For',
+						'capability' => 'manage_options',
+						'fields'     => [
+							[
+								'name'  => 'text_field',
+								'type'  => 'text',
+								'label' => 'Text Field',
+							],
+							[
+								'name'  => 'checkbox_field',
+								'type'  => 'checkbox',
+								'label' => 'Checkbox Field',
+							],
+						],
+					],
+				],
+			]
+		);
+
+		$handler = $manager->get_new_settings_handler();
+		$handler->register_settings();
+
+		$section_id    = 'label_for_page_section';
+		$text_args     = $wp_settings_fields['label_for_page'][ $section_id ]['text_field']['args'];
+		$checkbox_args = $wp_settings_fields['label_for_page'][ $section_id ]['checkbox_field']['args'];
+
+		$this->assertSame( 'cassette-cmf-field-text_field', $text_args['label_for'] );
+		$this->assertArrayNotHasKey( 'label_for', $checkbox_args );
+	}
 }
