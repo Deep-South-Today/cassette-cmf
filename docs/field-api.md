@@ -291,6 +291,9 @@ Multi-line text input.
 - `rows` - Number of visible rows
 - `cols` - Number of visible columns
 - `maxlength` - Maximum character length
+- `allow_html` - When `true`, sanitizes with `wp_kses_post()` instead of stripping all tags. Default `false`.
+
+**Sanitization:** Textarea content is sanitized with `sanitize_textarea_field()` by default, which strips tags but **preserves newlines** — unlike a single-line `text` field, which collapses them. Set `allow_html => true` to permit safe HTML (via `wp_kses_post()`) while still stripping unsafe tags such as `<script>`.
 
 ---
 
