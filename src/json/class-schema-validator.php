@@ -10,6 +10,8 @@
 
 namespace Pedalcms\CassetteCmf\Json;
 
+use Pedalcms\CassetteCmf\Field\Field_Factory;
+
 /**
  * Schema_Validator class
  *
@@ -160,24 +162,11 @@ class Schema_Validator {
 		} elseif ( ! is_string( $field['type'] ) ) {
 			$this->errors[] = "{$path}.type must be a string";
 		} else {
-			$valid_types = [
-				'text',
-				'textarea',
-				'select',
-				'checkbox',
-				'radio',
-				'number',
-				'email',
-				'url',
-				'date',
-				'password',
-				'color',
-				'wysiwyg',
-				'tabs',
-				'metabox',
-				'group',
-				'repeater',
-			];
+			// Read from Field_Factory rather than keeping a separate hardcoded
+			// list, so this stays in sync with the built-in field types and
+			// also accepts any custom type registered via
+			// Field_Factory::register_type().
+			$valid_types = array_keys( Field_Factory::get_registered_types() );
 			if ( ! in_array( $field['type'], $valid_types, true ) ) {
 				$this->errors[] = "{$path}.type must be one of: " . implode( ', ', $valid_types );
 			}

@@ -821,6 +821,10 @@ $transition-fast: 0.15s ease-in-out;
 		margin-left: auto;
 	}
 
+	// Move up/down are kept visible rather than hover-only: a
+	// hover-revealed control is unreachable by keyboard.
+	.cassette-cmf-repeater-move-up,
+	.cassette-cmf-repeater-move-down,
 	.cassette-cmf-repeater-toggle,
 	.cassette-cmf-repeater-remove {
 		display: inline-flex;
@@ -840,6 +844,12 @@ $transition-fast: 0.15s ease-in-out;
 			background: #f0f0f1;
 			border-color: $wp-text-light;
 			color: $wp-text-dark;
+		}
+
+		&:disabled {
+			opacity: 0.4;
+			cursor: not-allowed;
+			pointer-events: none;
 		}
 
 		.dashicons {
@@ -862,12 +872,6 @@ $transition-fast: 0.15s ease-in-out;
 			background: #f9e9e9;
 			border-color: $wp-red;
 			color: $wp-red-darker-10;
-		}
-
-		&:disabled {
-			opacity: 0.4;
-			cursor: not-allowed;
-			pointer-events: none;
 		}
 	}
 

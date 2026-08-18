@@ -1151,6 +1151,22 @@ class RepeaterField extends AbstractField {
 }
 ```
 
+> **Note:** the built-in `repeater` field type ships a `row_label_field` option: name a sub-field whose value should be used as each row's collapsed label instead of the default `row_label` template (e.g. `'row_label' => 'Row {{index}}'`). Once that sub-field is non-empty for a row, its value replaces the index-based label and updates live as the field is edited — including while dragging rows, so reordering no longer renames every row to match its new position.
+>
+> ```php
+> [
+>     'name'            => 'team_members',
+>     'type'            => 'repeater',
+>     'row_label_field' => 'name',
+>     'fields'          => [
+>         [ 'name' => 'name', 'type' => 'text', 'label' => 'Name' ],
+>         [ 'name' => 'role', 'type' => 'text', 'label' => 'Role' ],
+>     ],
+> ]
+> ```
+>
+> `row_label_field` must reference a sub-field with a single text-like control — `text`, `textarea`, `number`, `email`, `url`, `date`, or `select`. Checkbox, radio, group, and other container sub-fields are not supported as a label source.
+
 ### WYSIWYG Editor Field
 
 Integrate WordPress TinyMCE editor:

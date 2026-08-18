@@ -8,6 +8,7 @@
  */
 
 use Pedalcms\CassetteCmf\Json\Schema_Validator;
+use Pedalcms\CassetteCmf\Field\Field_Factory;
 
 /**
  * Class Test_Schema_Validator
@@ -525,23 +526,67 @@ class Test_Schema_Validator extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test a custom field type registered via Field_Factory::register_type()
+	 * is accepted by the validator.
+	 *
+	 * Regression test: Schema_Validator previously checked field types
+	 * against its own hardcoded list, so it rejected any custom type a
+	 * plugin or theme registered at runtime, even though Field_Factory
+	 * itself could create it. Now that it reads from
+	 * Field_Factory::get_registered_types(), custom types validate too.
+	 */
+	public function test_custom_registered_field_type_is_valid(): void {
+		Field_Factory::register_type( 'my_custom_type', \Pedalcms\CassetteCmf\Field\Fields\Text_Field::class );
+
+		try {
+			$config = [
+				'cpts' => [
+					[
+						'id'     => 'book',
+						'fields' => [
+							[
+								'name' => 'test_field',
+								'type' => 'my_custom_type',
+							],
+						],
+					],
+				],
+			];
+
+			$validator = new Schema_Validator();
+			$result    = $validator->validate( $config );
+
+			$this->assertTrue( $result, 'Custom registered type should be valid. Errors: ' . $validator->get_error_message() );
+		} finally {
+			Field_Factory::unregister_type( 'my_custom_type' );
+		}
+	}
+
+	/**
 	 * Test all valid field types.
+	 *
+	 * Covers every type Field_Factory registers by default. Kept in sync
+	 * manually since Schema_Validator now reads its allowed-types list
+	 * from Field_Factory::get_registered_types() rather than a separate
+	 * hardcoded copy — this test guards against the two drifting apart
+	 * again the way they previously did (custom_html and upload were
+	 * missing from Schema_Validator's old hardcoded list).
 	 */
 	public function test_all_valid_field_types(): void {
 		$valid_types = [
-			'text'     => [],
-			'textarea' => [],
-			'select'   => [ 'options' => [ 'a' => 'A' ] ], // requires options
-			'checkbox' => [ 'options' => [ 'a' => 'A' ] ], // optional options for multiple
-			'radio'    => [ 'options' => [ 'a' => 'A' ] ], // requires options
-			'number'   => [],
-			'email'    => [],
-			'url'      => [],
-			'date'     => [],
-			'password' => [],
-			'color'    => [],
-			'wysiwyg'  => [],
-			'tabs'     => [
+			'text'        => [],
+			'textarea'    => [],
+			'select'      => [ 'options' => [ 'a' => 'A' ] ], // requires options
+			'checkbox'    => [ 'options' => [ 'a' => 'A' ] ], // optional options for multiple
+			'radio'       => [ 'options' => [ 'a' => 'A' ] ], // requires options
+			'number'      => [],
+			'email'       => [],
+			'url'         => [],
+			'date'        => [],
+			'password'    => [],
+			'color'       => [],
+			'wysiwyg'     => [],
+			'tabs'        => [
 				'tabs' => [
 					[
 						'id'     => 'tab1',
@@ -550,9 +595,9 @@ class Test_Schema_Validator extends WP_UnitTestCase {
 					],
 				],
 			], // requires tabs
-			'metabox'  => [ 'fields' => [] ], // requires fields
-			'group'    => [ 'fields' => [] ], // requires fields
-			'repeater' => [
+			'metabox'     => [ 'fields' => [] ], // requires fields
+			'group'       => [ 'fields' => [] ], // requires fields
+			'repeater'    => [
 				'fields' => [
 					[
 						'name' => 'item',
@@ -560,6 +605,8 @@ class Test_Schema_Validator extends WP_UnitTestCase {
 					],
 				],
 			], // requires fields with at least one
+			'custom_html' => [],
+			'upload'      => [],
 		];
 
 		foreach ( $valid_types as $type => $extra ) {

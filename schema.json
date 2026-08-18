@@ -626,6 +626,10 @@
           "description": "Label template for repeater rows (use {{index}} for row number)",
           "default": "Item {{index}}"
         },
+        "row_label_field": {
+          "type": "string",
+          "description": "Name of a sub-field whose value is used as the row's collapsed label instead of row_label, once that sub-field is non-empty. Must reference a sub-field with a single text-like control (text, textarea, number, email, url, date, select)."
+        },
         "min_rows": {
           "type": "integer",
           "description": "Minimum number of rows in repeater",

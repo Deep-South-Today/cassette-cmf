@@ -476,6 +476,20 @@
 				}
 				$repeater.data('repeater-initialized', true);
 
+				// Live-update a row's label from its row_label_field sub-field
+				const rowLabelField = $repeater.data('row-label-field') || '';
+
+				if (rowLabelField) {
+					const debouncedLabelUpdate = self.debounce(function ($row) {
+						const index = $rows.find('.cassette-cmf-repeater-row').index($row);
+						self.updateRowLabelText($row, rowLabelField, index);
+					}, 150);
+
+					$repeater.on('input change', '.cassette-cmf-repeater-row-content :input', function () {
+						debouncedLabelUpdate($(this).closest('.cassette-cmf-repeater-row'));
+					});
+				}
+
 				// Add new row
 				$addButton.on('click', function (e) {
 					e.preventDefault();
@@ -501,6 +515,7 @@
 
 					self.updateRowNumbers($repeater);
 					self.checkMinMax($repeater);
+					self.updateMoveButtonStates($repeater);
 
 					// Trigger event for external scripts
 					$(document).trigger('cassette-cmf-fields-added');
@@ -523,6 +538,7 @@
 						$(this).remove();
 						self.updateRowNumbers($repeater);
 						self.checkMinMax($repeater);
+						self.updateMoveButtonStates($repeater);
 					});
 				});
 
@@ -545,6 +561,45 @@
 					}
 				});
 
+				// Keyboard-accessible move up/down - an addition alongside
+				// drag-and-drop, not a replacement. Independent of jQuery UI
+				// Sortable, gated only on the same data-sortable flag.
+				if ($repeater.data('sortable') !== false) {
+					$repeater.on('click', '.cassette-cmf-repeater-move-up', function (e) {
+						e.preventDefault();
+						const $button = $(this);
+						const $row = $button.closest('.cassette-cmf-repeater-row');
+						const $prev = $row.prev('.cassette-cmf-repeater-row');
+
+						if (!$prev.length) {
+							return;
+						}
+
+						$row.insertBefore($prev);
+						self.updateRowNumbers($repeater);
+						self.updateMoveButtonStates($repeater);
+						self.announceRowMove($repeater, $row);
+						self.focusMoveButton($row, $button);
+					});
+
+					$repeater.on('click', '.cassette-cmf-repeater-move-down', function (e) {
+						e.preventDefault();
+						const $button = $(this);
+						const $row = $button.closest('.cassette-cmf-repeater-row');
+						const $next = $row.next('.cassette-cmf-repeater-row');
+
+						if (!$next.length) {
+							return;
+						}
+
+						$row.insertAfter($next);
+						self.updateRowNumbers($repeater);
+						self.updateMoveButtonStates($repeater);
+						self.announceRowMove($repeater, $row);
+						self.focusMoveButton($row, $button);
+					});
+				}
+
 				// Make sortable
 				if (typeof $.fn.sortable !== 'undefined' && $repeater.data('sortable') !== false) {
 					$rows.sortable({
@@ -555,19 +610,114 @@
 						},
 						stop: function () {
 							self.updateRowNumbers($repeater);
+							self.updateMoveButtonStates($repeater);
 						}
 					});
 				}
 
 				// Initial check
 				self.checkMinMax($repeater);
+				self.updateMoveButtonStates($repeater);
 			});
 		}
 
 		updateRowNumbers($repeater) {
+			const self = this;
+			const rowLabelField = $repeater.data('row-label-field') || '';
+
 			$repeater.find('.cassette-cmf-repeater-rows .cassette-cmf-repeater-row').each(function (index) {
-				$(this).find('> .cassette-cmf-repeater-row-header .cassette-cmf-repeater-row-label').first().text('Row ' + (index + 1));
+				self.updateRowLabelText($(this), rowLabelField, index);
 			});
+		}
+
+		/**
+		 * Get the current value of a row's row_label_field sub-field, if any.
+		 *
+		 * Sub-field inputs are renamed to repeaterName[rowIndex][subFieldName]
+		 * on render, so the target control is matched by that name suffix
+		 * rather than by row index, which changes on add/remove/reorder.
+		 */
+		getRowLabelFieldValue($row, rowLabelField) {
+			const suffix = '[' + rowLabelField + ']';
+			let value = '';
+
+			$row.find('> .cassette-cmf-repeater-row-content :input').each(function () {
+				const name = $(this).attr('name') || '';
+				if (name.slice(-suffix.length) === suffix) {
+					value = $(this).val() || '';
+					return false; // Stop at the first match.
+				}
+			});
+
+			return value;
+		}
+
+		/**
+		 * Set a row's label, preferring its row_label_field sub-field value
+		 * (when configured and non-empty) over index-based "Row N" numbering.
+		 */
+		updateRowLabelText($row, rowLabelField, index) {
+			const $label = $row.find('> .cassette-cmf-repeater-row-header .cassette-cmf-repeater-row-label').first();
+			const fieldValue = rowLabelField ? this.getRowLabelFieldValue($row, rowLabelField) : '';
+
+			$label.text(fieldValue ? fieldValue : 'Row ' + (index + 1));
+		}
+
+		/**
+		 * Disable the first row's "move up" and the last row's "move down"
+		 * button; enable all others. Call after any change to row count or
+		 * order (add, remove, drag-sort, keyboard move).
+		 */
+		updateMoveButtonStates($repeater) {
+			const $allRows = $repeater.find('.cassette-cmf-repeater-rows .cassette-cmf-repeater-row');
+			const lastIndex = $allRows.length - 1;
+
+			$allRows.each(function (index) {
+				const $row = $(this);
+				$row.find('> .cassette-cmf-repeater-row-header .cassette-cmf-repeater-move-up').prop('disabled', index === 0);
+				$row.find('> .cassette-cmf-repeater-row-header .cassette-cmf-repeater-move-down').prop('disabled', index === lastIndex);
+			});
+		}
+
+		/**
+		 * Announce a row's new position via the repeater's polite live
+		 * region, for screen reader users after a keyboard move.
+		 */
+		announceRowMove($repeater, $row) {
+			const $announcer = $repeater.find('> .cassette-cmf-repeater-announcer');
+
+			if (!$announcer.length) {
+				return;
+			}
+
+			const $allRows = $repeater.find('.cassette-cmf-repeater-rows .cassette-cmf-repeater-row');
+			const position = $allRows.index($row) + 1;
+			const total = $allRows.length;
+
+			$announcer.text('Row moved to position ' + position + ' of ' + total + '.');
+		}
+
+		/**
+		 * Return focus to the button just used to move a row. If that
+		 * button is now disabled (the row reached that end of the list),
+		 * focus its sibling move button instead, which is guaranteed
+		 * enabled unless the repeater has a single row.
+		 */
+		focusMoveButton($row, $clickedButton) {
+			if (!$clickedButton.prop('disabled')) {
+				$clickedButton.trigger('focus');
+				return;
+			}
+
+			const isUp = $clickedButton.hasClass('cassette-cmf-repeater-move-up');
+			const $sibling = $row.find(
+				'> .cassette-cmf-repeater-row-header ' +
+				(isUp ? '.cassette-cmf-repeater-move-down' : '.cassette-cmf-repeater-move-up')
+			);
+
+			if ($sibling.length && !$sibling.prop('disabled')) {
+				$sibling.trigger('focus');
+			}
 		}
 
 		checkMinMax($repeater) {
