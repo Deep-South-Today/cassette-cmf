@@ -137,6 +137,61 @@ class Test_Handlers extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test common assets are enqueued before field-specific assets.
+	 *
+	 * Regression test for #64: field CSS must be able to override common
+	 * CSS at equal specificity, which only works if the common
+	 * cassette-cmf script/style is registered before field-specific
+	 * assets. Uses a repeater field, whose enqueue_assets() enqueues the
+	 * distinguishable jquery-ui-sortable handle, to prove ordering.
+	 */
+	public function test_common_assets_enqueued_before_field_assets(): void {
+		// Scripts/styles queues are global state shared across tests; reset
+		// them so a handle enqueued by an earlier test can't pin an
+		// unrelated position and produce a false pass or failure here.
+		global $wp_scripts;
+		$wp_scripts->queue = [];
+		$wp_scripts->done  = [];
+
+		set_current_screen( 'edit-post' );
+		get_current_screen()->post_type = 'enqueue_order_cpt';
+
+		$handler = new New_Post_Type_Handler();
+		$handler->add_post_type( 'enqueue_order_cpt', [ 'label' => 'Test' ] );
+		$handler->add_fields(
+			'enqueue_order_cpt',
+			[
+				[
+					'name'   => 'test_repeater',
+					'type'   => 'repeater',
+					'label'  => 'Test',
+					'fields' => [
+						[
+							'name'  => 'sub_field',
+							'type'  => 'text',
+							'label' => 'Sub',
+						],
+					],
+				],
+			]
+		);
+
+		$handler->enqueue_assets();
+
+		$queue      = $wp_scripts->queue;
+		$common_pos = array_search( 'cassette-cmf', $queue, true );
+		$field_pos  = array_search( 'jquery-ui-sortable', $queue, true );
+
+		$this->assertNotFalse( $common_pos, 'Common cassette-cmf script should be enqueued.' );
+		$this->assertNotFalse( $field_pos, 'Field-specific jquery-ui-sortable script should be enqueued.' );
+		$this->assertLessThan(
+			$field_pos,
+			$common_pos,
+			'Common assets must be enqueued before field-specific assets.'
+		);
+	}
+
+	/**
 	 * Test handler works via Manager.
 	 */
 	public function test_handler_via_manager(): void {

@@ -335,8 +335,8 @@ class Existing_Settings_Page_Handler extends Abstract_Handler {
 			$expected_screen = 'options-' . $page_id;
 
 			if ( $screen->id === $expected_screen || $screen->base === $expected_screen ) {
-				$this->enqueue_field_assets( $page_id );
 				$this->enqueue_common_assets();
+				$this->enqueue_field_assets( $page_id );
 				break;
 			}
 		}

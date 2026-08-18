@@ -539,8 +539,8 @@ class New_Settings_Page_Handler extends Abstract_Handler {
 			$hook_suffix = $page->get_hook_suffix();
 
 			if ( $screen->id === $hook_suffix && $this->has_fields( $page_id ) ) {
-				$this->enqueue_field_assets( $page_id );
 				$this->enqueue_common_assets();
+				$this->enqueue_field_assets( $page_id );
 				break;
 			}
 		}

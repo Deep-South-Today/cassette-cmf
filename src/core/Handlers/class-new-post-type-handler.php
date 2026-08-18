@@ -415,8 +415,8 @@ class New_Post_Type_Handler extends Abstract_Handler {
 		// Check if we're on a post type edit screen
 		foreach ( $this->post_types as $post_type => $cpt ) {
 			if ( $screen->post_type === $post_type && $this->has_fields( $post_type ) ) {
-				$this->enqueue_field_assets( $post_type );
 				$this->enqueue_common_assets();
+				$this->enqueue_field_assets( $post_type );
 				break;
 			}
 		}
